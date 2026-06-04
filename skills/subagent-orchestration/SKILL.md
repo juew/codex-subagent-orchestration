@@ -1,6 +1,6 @@
 ---
 name: subagent-orchestration
-description: Use this skill for long-running or multi-agent Codex work where a main controller must plan tasks, delegate bounded work to subagents, enforce acceptance criteria, manage context-budget handoffs, coordinate required tools, track state, and verify final artifacts. Trigger it for main-controller/subagent workflows, parallel agents, handoff documents, acceptance gates, tool-use policy enforcement, artifact consistency checks, and safe resumption after pauses, context compaction, or agent replacement.
+description: Use this skill for long-running or multi-agent Codex work where a main controller must coordinate bounded subagents, acceptance gates, context-budget handoffs, tool-use policy, artifact consistency, safe resumption, or subagent lifecycle cleanup after pauses, blocking, cancellation, or completion.
 ---
 
 # Subagent Orchestration
@@ -16,6 +16,7 @@ Use this skill to run reliable long-running work with one main controller and on
 - A subagent returning `READY_FOR_ACCEPTANCE` means "please inspect my evidence"; it does not mean the task is complete.
 - The main controller must independently verify subagent outputs before marking work complete or allowing downstream tasks to depend on them.
 - Prefer reusing a capable subagent for continuity. Replace or close it when it shows context pollution, repeated misinterpretation, stale assumptions, tool-policy violations, or role drift.
+- Do not leave idle subagents open for convenience. Once their final status, evidence, and any required handoff are captured, close/delete them with the platform's lifecycle tool.
 
 ## Main Workflow
 
@@ -26,7 +27,20 @@ Use this skill to run reliable long-running work with one main controller and on
 5. Monitor without micromanaging. Poll status, inspect new artifacts, and update the ledger.
 6. Accept or reject outputs. Reject outputs that lack evidence, violate tool policy, contradict source facts, or are inconsistent with other artifacts.
 7. Write handoffs before context becomes fragile.
-8. Close only after accepted outputs and final consistency checks.
+8. Retire or close subagents that are accepted, blocked with handoff, failed, canceled, or superseded.
+9. Close only after accepted outputs, final consistency checks, and subagent cleanup.
+
+## Subagent Lifecycle And Cleanup
+
+Treat subagent cleanup as part of orchestration, not as optional housekeeping.
+
+- Track every subagent in the ledger as `active`, `accepted`, `blocked-handoff-written`, `failed`, `canceled`, `superseded`, or `closed`.
+- Keep a subagent active only while it is doing useful work or while the main controller is waiting for evidence needed on the critical path.
+- After accepting a result, record the evidence and changed artifacts, then close/delete the subagent unless immediate follow-up requires the same context.
+- Before closing a blocked, paused, or superseded subagent, capture a handoff or explicit non-handoff reason.
+- If a platform distinguishes close, archive, delete, and cancel, use the least destructive action that stops the agent from accumulating as active state.
+- In Codex multi-agent sessions, call `multi_agent_v1.close_agent` for subagents that no longer need `send_input` or `wait_agent`; use `resume_agent` only when a closed agent's context is genuinely needed again.
+- Do not create replacement subagents until the old one is marked `superseded` and closed, unless both must briefly overlap for a bounded handoff.
 
 ## Delegation Contract
 
@@ -125,6 +139,7 @@ For work with multiple final artifacts, the main controller must run a final con
 Do not close a long-running task until:
 
 - Every active subtask is accepted, blocked with a handoff, or explicitly canceled.
+- Every subagent that no longer needs interaction has been closed/deleted or has a recorded reason for staying active.
 - Shared artifacts are consistent.
 - Required verification commands or visual checks have run.
 - The final answer states what changed, what was verified, and any remaining risk.
