@@ -51,5 +51,6 @@ Status:
 Changed artifacts:
 Evidence paths:
 Risks:
+Can close/delete this subagent after acceptance?:
 Recommended next step:
 ```
