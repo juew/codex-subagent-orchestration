@@ -1,4 +1,4 @@
 interface:
   display_name: "Subagent Orchestration"
   short_description: "Main-controller workflows for reliable long-running Codex tasks."
-  default_prompt: "Use subagent-orchestration to plan, delegate, supervise, hand off, and verify a long-running multi-agent task."
+  default_prompt: "Use subagent-orchestration to plan, delegate, supervise, hand off, clean up subagents, and verify a long-running multi-agent task."
