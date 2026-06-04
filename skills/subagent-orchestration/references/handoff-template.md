@@ -20,6 +20,8 @@ Out of scope:
 Overall status:
 Active subagents:
 Paused/retired subagents:
+Closed/deleted subagents:
+Subagents intentionally left active and why:
 External systems/processes:
 
 ## Completed
