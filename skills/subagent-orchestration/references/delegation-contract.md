@@ -52,5 +52,8 @@ Changed artifacts:
 Evidence paths:
 Risks:
 Can close/delete this subagent after acceptance?:
+Close confirmation status:
+Cleanup warnings:
+Status-event warnings:
 Recommended next step:
 ```
