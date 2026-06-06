@@ -40,6 +40,7 @@ Treat subagent cleanup as part of orchestration, not as optional housekeeping.
 - Before closing a blocked, paused, or superseded subagent, capture a handoff or explicit non-handoff reason.
 - If a platform distinguishes close, archive, delete, and cancel, use the least destructive action that stops the agent from accumulating as active state.
 - In Codex multi-agent sessions, call `multi_agent_v1.close_agent` for subagents that no longer need `send_input` or `wait_agent`; use `resume_agent` only when a closed agent's context is genuinely needed again.
+- If `wait_agent` times out, produce the final user-facing conclusion before cleanup. Treat `close_agent` after a wait timeout as best-effort only; cleanup failure or timeout must be recorded as a warning, not allowed to block the final output.
 - Do not create replacement subagents until the old one is marked `superseded` and closed, unless both must briefly overlap for a bounded handoff.
 
 ## Delegation Contract
@@ -139,7 +140,7 @@ For work with multiple final artifacts, the main controller must run a final con
 Do not close a long-running task until:
 
 - Every active subtask is accepted, blocked with a handoff, or explicitly canceled.
-- Every subagent that no longer needs interaction has been closed/deleted or has a recorded reason for staying active.
+- Every subagent that no longer needs interaction has been closed/deleted or has a recorded reason for staying active. After a `wait_agent` timeout, this check becomes best-effort cleanup after the final conclusion, with cleanup failures reported as warnings.
 - Shared artifacts are consistent.
 - Required verification commands or visual checks have run.
 - The final answer states what changed, what was verified, and any remaining risk.
