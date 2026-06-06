@@ -16,7 +16,7 @@ Use this skill to run reliable long-running work with one main controller and on
 - A subagent returning `READY_FOR_ACCEPTANCE` means "please inspect my evidence"; it does not mean the task is complete.
 - The main controller must independently verify subagent outputs before marking work complete or allowing downstream tasks to depend on them.
 - Prefer reusing a capable subagent for continuity. Replace or close it when it shows context pollution, repeated misinterpretation, stale assumptions, tool-policy violations, or role drift.
-- Do not leave idle subagents open for convenience. Once their final status, evidence, and any required handoff are captured, close/delete them with the platform's lifecycle tool.
+- Do not leave idle subagents open for convenience. Once their final status, evidence, and any required handoff are captured, request close/delete with the platform's lifecycle tool.
 
 ## Main Workflow
 
@@ -27,21 +27,24 @@ Use this skill to run reliable long-running work with one main controller and on
 5. Monitor without micromanaging. Poll status, inspect new artifacts, and update the ledger.
 6. Accept or reject outputs. Reject outputs that lack evidence, violate tool policy, contradict source facts, or are inconsistent with other artifacts.
 7. Write handoffs before context becomes fragile.
-8. Retire or close subagents that are accepted, blocked with handoff, failed, canceled, or superseded.
-9. Close only after accepted outputs, final consistency checks, and subagent cleanup.
+8. Retire or request close for subagents that are accepted, blocked with handoff, failed, canceled, or superseded.
+9. For normal completion, close only after accepted outputs, final consistency checks, and subagent cleanup. After a `wait_agent` timeout, output the final conclusion first and make cleanup best-effort.
 
 ## Subagent Lifecycle And Cleanup
 
 Treat subagent cleanup as part of orchestration, not as optional housekeeping.
 
-- Track every subagent in the ledger as `active`, `accepted`, `blocked-handoff-written`, `failed`, `canceled`, `superseded`, or `closed`.
+- Track every subagent in the ledger as `active`, `accepted`, `blocked-handoff-written`, `failed`, `canceled`, `superseded`, `wait-timeout`, `status-event-missing-evidence-accepted`, `close-requested`, `closed`, `close-requested-unconfirmed-warning`, `close-failed-warning`, or `cleanup-warning`.
 - Keep a subagent active only while it is doing useful work or while the main controller is waiting for evidence needed on the critical path.
-- After accepting a result, record the evidence and changed artifacts, then close/delete the subagent unless immediate follow-up requires the same context.
+- Before final output, run at most one bounded wait-drain for subagents whose results could still affect the critical path. Do not repeatedly call `wait_agent` just to classify stale, non-critical, or cleanup-only agents.
+- After accepting a result, record the evidence and changed artifacts, then request close/delete for the subagent unless immediate follow-up requires the same context.
+- If a completion/status event is missing or delayed but artifacts, diffs, logs, screenshots, or other evidence are sufficient to verify the assigned scope, accept the result as `status-event-missing-evidence-accepted` and report the missing status event as a warning.
 - Before closing a blocked, paused, or superseded subagent, capture a handoff or explicit non-handoff reason.
 - If a platform distinguishes close, archive, delete, and cancel, use the least destructive action that stops the agent from accumulating as active state.
 - In Codex multi-agent sessions, call `multi_agent_v1.close_agent` for subagents that no longer need `send_input` or `wait_agent`; use `resume_agent` only when a closed agent's context is genuinely needed again.
-- If `wait_agent` times out, produce the final user-facing conclusion before cleanup. Treat `close_agent` after a wait timeout as best-effort only; cleanup failure or timeout must be recorded as a warning, not allowed to block the final output.
-- Do not create replacement subagents until the old one is marked `superseded` and closed, unless both must briefly overlap for a bounded handoff.
+- If `wait_agent` times out, produce the final user-facing conclusion before cleanup. Treat `close_agent` after a wait timeout as best-effort only, with at most one close attempt per affected subagent unless the user explicitly asks to wait.
+- Treat `close_agent` as idempotent best-effort cleanup, not as a required deletion acknowledgment. If close confirmation is missing, duplicated, delayed, or failed, record one terminal warning state per subagent and continue.
+- Do not create replacement subagents until the old one is marked `superseded` and either `closed` or recorded as a terminal cleanup warning such as `close-requested-unconfirmed-warning` or `close-failed-warning`, unless both must briefly overlap for a bounded handoff.
 
 ## Delegation Contract
 
@@ -71,6 +74,8 @@ The main controller must reject a subagent result when:
 - It creates inconsistency between final artifacts.
 
 Accepted evidence should be traceable from task to source material, change, verification result, and final artifact.
+
+When the status event is missing or delayed, sufficient inspected evidence may satisfy acceptance. Record the missing event as a warning instead of waiting indefinitely for a status update.
 
 ## Tool Policy Enforcement
 
@@ -139,8 +144,8 @@ For work with multiple final artifacts, the main controller must run a final con
 
 Do not close a long-running task until:
 
-- Every active subtask is accepted, blocked with a handoff, or explicitly canceled.
-- Every subagent that no longer needs interaction has been closed/deleted or has a recorded reason for staying active. After a `wait_agent` timeout, this check becomes best-effort cleanup after the final conclusion, with cleanup failures reported as warnings.
+- Every subtask is accepted, blocked with a handoff, explicitly canceled, accepted as `status-event-missing-evidence-accepted`, or recorded as `wait-timeout` with the missing result disclosed as a risk.
+- Every subagent that no longer needs interaction has been closed/deleted, has cleanup requested, has a terminal cleanup warning, or has a recorded reason for staying active. After a `wait_agent` timeout, this check becomes best-effort cleanup after the final conclusion, with cleanup failures reported as warnings.
 - Shared artifacts are consistent.
 - Required verification commands or visual checks have run.
 - The final answer states what changed, what was verified, and any remaining risk.
