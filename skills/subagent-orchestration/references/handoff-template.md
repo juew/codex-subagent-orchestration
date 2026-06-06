@@ -21,7 +21,10 @@ Overall status:
 Active subagents:
 Paused/retired subagents:
 Closed/deleted subagents:
+Close pending/unconfirmed subagents:
 Subagents intentionally left active and why:
+Cleanup warnings:
+Status-event warnings:
 External systems/processes:
 
 ## Completed
