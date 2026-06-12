@@ -1,11 +1,11 @@
 ---
 name: subagent-orchestration
-description: Use this skill for long-running or multi-agent Codex work where a main controller must coordinate bounded subagents, acceptance gates, context-budget handoffs, tool-use policy, artifact consistency, safe resumption, or subagent lifecycle cleanup after pauses, blocking, cancellation, or completion.
+description: Use this skill for long-running or multi-agent Codex work where a main controller must coordinate bounded subagents, task slices, acceptance gates, context-budget handoffs, tool-use policy, artifact consistency, evidence verification, safe resumption, strict output-quality control, or subagent lifecycle cleanup after pauses, blocking, cancellation, or completion. Strongly consider it for 架构师 Agent, 主控 Agent, 走读, 审核, 审计, 评审, 实施清单, 修改建议, 任务拆分, 后续实现 Agent, 交给开发 Agent, or other review-to-handoff workflows where the controller should produce evidence-backed plans and acceptance gates before anyone changes code. Also consider it for concrete deliverables such as 报告, PPT, Excel, 网页, 图片, 代码, 测试证据, or release packages that require 主控, 验收标准, 验证节点, 产物一致性, or cross-artifact quality control after superpowers:using-superpowers performs the first process-skill decision.
 ---
 
 # Subagent Orchestration
 
-This skill does not replace skill selection. Use `superpowers:using-superpowers` or the host platform's skill-discovery rules first; invoke this skill only after the work is classified as long-running, multi-agent, or handoff-sensitive.
+This skill does not replace skill selection. Use `superpowers:using-superpowers` or the host platform's skill-discovery rules first. Invoke this skill only after the work is classified as long-running, multi-agent, handoff-sensitive, artifact-consistency-heavy, or deliverable-oriented work that needs a main controller, acceptance gates, evidence verification, or strict output-quality control.
 
 Use this skill to run reliable long-running work with one main controller and one or more bounded subagents. The main controller owns planning, delegation, acceptance, permissions, handoffs, and final consistency. Subagents execute scoped tasks and return evidence for acceptance.
 
@@ -17,6 +17,18 @@ Use this skill to run reliable long-running work with one main controller and on
 - The main controller must independently verify subagent outputs before marking work complete or allowing downstream tasks to depend on them.
 - Prefer reusing a capable subagent for continuity. Replace or close it when it shows context pollution, repeated misinterpretation, stale assumptions, tool-policy violations, or role drift.
 - Do not leave idle subagents open for convenience. Once their final status, evidence, and any required handoff are captured, request close/delete with the platform's lifecycle tool.
+
+## Execution Boundary
+
+Classify the controller's execution mode before delegating:
+
+- `review-only`: inspect, coordinate, and report. Do not edit business code, create commits, push, deploy, or run destructive commands.
+- `plan-handoff`: turn reviewed findings into an implementation plan, task ledger, acceptance criteria, or prompts for later implementation agents. Do not implement the tasks.
+- `supervised-implementation`: implement only after the user explicitly authorizes code changes for this controller or this thread.
+
+Use `review-only` when the prompt says 架构师, 走读, 审核, 审计, 评审, 只读, 提出修改建议, 给产品看看, or asks for a report. Use `plan-handoff` when the prompt asks for 实施清单, 修改路线图, 任务拆分, or 给后续实现/开发 Agent. Do not reinterpret short follow-ups such as "请开始", "继续", or "好了" as permission to implement if the active mode is review-only or plan-handoff.
+
+Before entering `supervised-implementation`, require an explicit instruction such as "开始改代码", "请实现", "在当前分支落地这些改动", or another unambiguous request to modify code. If the latest instruction is ambiguous, restate the current mode and produce the next review or handoff artifact instead of making code changes.
 
 ## Main Workflow
 
