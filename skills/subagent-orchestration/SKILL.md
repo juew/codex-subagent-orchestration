@@ -1,6 +1,6 @@
 ---
 name: subagent-orchestration
-description: Use this skill for long-running or multi-agent Codex work where a main controller must coordinate bounded subagents, task slices, acceptance gates, context-budget handoffs, tool-use policy, artifact consistency, evidence verification, safe resumption, strict output-quality control, or subagent lifecycle cleanup after pauses, blocking, cancellation, or completion. Strongly consider it for 架构师 Agent, 主控 Agent, 走读, 审核, 审计, 评审, 实施清单, 修改建议, 任务拆分, 后续实现 Agent, 交给开发 Agent, or other review-to-handoff workflows where the controller should produce evidence-backed plans and acceptance gates before anyone changes code. Also consider it for concrete deliverables such as 报告, PPT, Excel, 网页, 图片, 代码, 测试证据, or release packages that require 主控, 验收标准, 验证节点, 产物一致性, or cross-artifact quality control after superpowers:using-superpowers performs the first process-skill decision.
+description: Use this skill for long-running or multi-agent Codex work where a main controller must coordinate bounded subagents, task slices, acceptance gates, context-budget handoffs, tool-use policy, artifact consistency, evidence verification, safe resumption, strict output-quality control, or subagent lifecycle cleanup after pauses, blocking, cancellation, or completion. Strongly consider it for 架构师 Agent, 主控 Agent, 走读, 审核, 审计, 评审, 实施清单, 修改建议, 任务拆分, 后续实现 Agent, 交给开发 Agent, 子 Agent 完成, 主控不要自己干活, 主控不直接写代码, or other review-to-handoff and delegated-implementation workflows where the controller should produce evidence-backed plans, delegate implementation, and enforce acceptance gates before code is changed or accepted. Also consider it for concrete deliverables such as 报告, PPT, Excel, 网页, 图片, 代码, 测试证据, or release packages that require 主控, 验收标准, 验证节点, 产物一致性, or cross-artifact quality control after superpowers:using-superpowers performs the first process-skill decision.
 ---
 
 # Subagent Orchestration
@@ -24,15 +24,18 @@ Classify the controller's execution mode before delegating:
 
 - `review-only`: inspect, coordinate, and report. Do not edit business code, create commits, push, deploy, or run destructive commands.
 - `plan-handoff`: turn reviewed findings into an implementation plan, task ledger, acceptance criteria, or prompts for later implementation agents. Do not implement the tasks.
-- `supervised-implementation`: implement only after the user explicitly authorizes code changes for this controller or this thread.
+- `delegated-implementation`: implement after explicit user authorization, but implementation work is assigned to subagents. The main controller plans, delegates, reviews evidence, resolves conflicts, runs or requests verification, and decides acceptance; it does not directly edit business code.
+- `controller-implementation`: the main controller may directly edit files only when the user explicitly authorizes the controller itself to implement, or when the edit is limited to orchestration artifacts such as ledgers, handoffs, prompts, or verification notes.
 
 Use `review-only` when the prompt says 架构师, 走读, 审核, 审计, 评审, 只读, 提出修改建议, 给产品看看, or asks for a report. Use `plan-handoff` when the prompt asks for 实施清单, 修改路线图, 任务拆分, or 给后续实现/开发 Agent. Do not reinterpret short follow-ups such as "请开始", "继续", or "好了" as permission to implement if the active mode is review-only or plan-handoff.
 
-Before entering `supervised-implementation`, require an explicit instruction such as "开始改代码", "请实现", "在当前分支落地这些改动", or another unambiguous request to modify code. If the latest instruction is ambiguous, restate the current mode and produce the next review or handoff artifact instead of making code changes.
+Before entering implementation, require an explicit instruction such as "开始改代码", "请实现", "在当前分支落地这些改动", or another unambiguous request to modify code. Under this skill, default implementation mode is `delegated-implementation`: subagents write business code and the controller verifies. Escalate to `controller-implementation` only when the user explicitly says the main controller should make the code edits itself or when no subagent/tooling path is available and the user confirms that exception.
+
+If the user says 严格使用 subagent-orchestration, 子 Agent 完成, 主控不要自己干活, or asks why the controller is editing, treat that as a hard boundary: stop direct business-code edits immediately, preserve the worktree, delegate the remaining implementation to a subagent, and switch the controller back to planning, acceptance, conflict resolution, and final reporting.
 
 ## Main Workflow
 
-1. Classify the work: plan-only, execution, review, artifact editing, investigation, or closure.
+1. Classify the work: review-only, plan-handoff, delegated-implementation, controller-implementation, artifact editing, investigation, or closure.
 2. Create a state ledger for nontrivial work. Track owner, task, status, inputs, outputs, blockers, artifact paths, acceptance status, and next step.
 3. Define task slices with clear boundaries. Only parallelize tasks whose write sets, UI surfaces, and dependencies do not conflict.
 4. Delegate using a written contract. Include goal, scope, allowed tools, forbidden actions, expected evidence, output format, acceptance criteria, and stop conditions.
