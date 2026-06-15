@@ -8,6 +8,7 @@ Use this template when assigning work to a subagent.
 Agent:
 Task ID:
 Reasoning level / execution mode:
+Reuse decision:
 
 ## Objective
 
@@ -25,6 +26,8 @@ Write boundary:
 References:
 Artifacts:
 Prior accepted decisions:
+Prior subagent context or handoff:
+Required skills or references already loaded:
 
 ## Required Tools
 
@@ -51,6 +54,7 @@ Status:
 Changed artifacts:
 Evidence paths:
 Risks:
+Reusable for follow-up?:
 Can close/delete this subagent after acceptance?:
 Close confirmation status:
 Cleanup warnings:
