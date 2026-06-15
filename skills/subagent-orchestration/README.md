@@ -21,6 +21,7 @@
 - `READY_FOR_ACCEPTANCE` 只是等待主控验收，不等于任务完成。
 - 如果用户把当前 agent 定义为“架构师 / 主控 / 审核 / 走读 / 评审”，默认是只读审查和交接模式；除非用户明确说“开始改代码 / 请实现 / 在当前分支落地”，否则不要把修改建议直接变成代码提交。
 - “实施清单、修改路线图、给后续开发 Agent 的任务拆分”属于 plan-handoff 产物，目标是交给后续实现 agent，而不是当前主控直接执行。
+- 进入实现阶段后，默认也是 delegated-implementation：子 Agent 写业务代码，主控只负责任务拆分、下发、证据复核、冲突裁决、验收比对和最终报告。只有用户明确要求主控亲自改代码，才进入 controller-implementation。
 - 上下文变长、任务暂停、规则变化、结论撤销或 agent 换班时必须写交接文档。
 - 如果用户要求某个工具，工具使用证明必须成为验收门槛。
 
@@ -40,8 +41,9 @@
 请先按 using-superpowers 选择适用 skill。
 如果任务被判断为长流程、多 agent、或需要 handoff，
 再使用 subagent-orchestration 作为主控流程。
-如果当前角色是架构师/审核/主控，请保持 review-only 或 plan-handoff，
-只有收到明确实现授权后才进入 supervised-implementation。
+如果当前角色是架构师/审核/主控，请保持 review-only 或 plan-handoff。
+收到明确实现授权后，默认进入 delegated-implementation：
+子 Agent 写业务代码，主控只做编排、复核、裁决和验收。
 ```
 
 不要把 `subagent-orchestration` 作为所有任务的默认入口；小任务强行启用会增加文书和协调成本。
@@ -67,6 +69,7 @@ Core principles:
 - `READY_FOR_ACCEPTANCE` means the result is waiting for controller review, not that the task is complete.
 - If the user defines the current agent as an architect, controller, auditor, reviewer, or code-walk agent, default to review-only or handoff mode. Do not turn recommendations into code commits unless the user explicitly says to implement, change code, or land the work on the current branch.
 - Implementation plans, roadmaps, and tasks for later development agents are plan-handoff artifacts, not permission for the current controller to execute them.
+- After implementation is authorized, default to delegated-implementation: subagents edit business code, while the controller delegates, reviews evidence, resolves conflicts, verifies, and reports. Use controller-implementation only when the user explicitly asks the controller to edit code itself.
 - Write handoffs when context gets long, work pauses, rules change, decisions are withdrawn, or agents are replaced.
 - Required tool usage must be proven before acceptance.
 
@@ -88,6 +91,8 @@ If the task is classified as long-running, multi-agent, or requiring handoff,
 then use subagent-orchestration as the controller workflow.
 If the current role is architect/reviewer/controller, stay in review-only or
 plan-handoff mode until explicit implementation authorization is given.
+After authorization, default to delegated-implementation: subagents write
+business code and the controller verifies instead of editing directly.
 ```
 
 Do not make `subagent-orchestration` the default entry point for every task; forcing it onto small tasks adds coordination overhead.
