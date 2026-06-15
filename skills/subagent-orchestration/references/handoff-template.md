@@ -19,9 +19,11 @@ Out of scope:
 
 Overall status:
 Active subagents:
+Reusable subagents and capabilities:
 Paused/retired subagents:
 Closed/deleted subagents:
 Close pending/unconfirmed subagents:
+Superseded subagents and replacement handoffs:
 Subagents intentionally left active and why:
 Cleanup warnings:
 Status-event warnings:
