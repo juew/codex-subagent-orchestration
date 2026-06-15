@@ -15,7 +15,9 @@ Use this skill to run reliable long-running work with one main controller and on
 - A subagent owns only its assigned scope. It must not expand scope, make final product decisions, or mutate shared artifacts unless the delegation explicitly allows it.
 - A subagent returning `READY_FOR_ACCEPTANCE` means "please inspect my evidence"; it does not mean the task is complete.
 - The main controller must independently verify subagent outputs before marking work complete or allowing downstream tasks to depend on them.
-- Prefer reusing a capable subagent for continuity. Replace or close it when it shows context pollution, repeated misinterpretation, stale assumptions, tool-policy violations, or role drift.
+- Reuse a capable subagent for continuity by default. Spawn a new subagent only after a reuse gate records why existing agents are unsuitable.
+- A newly spawned subagent starts without another subagent's loaded skills, references, tool state, artifact knowledge, or local assumptions unless the main controller explicitly supplies them in the assignment or handoff.
+- Replace or close a subagent when it shows context pollution, repeated misinterpretation, stale assumptions, tool-policy violations, role drift, or a missing required capability.
 - Do not leave idle subagents open for convenience. Once their final status, evidence, and any required handoff are captured, request close/delete with the platform's lifecycle tool.
 
 ## Execution Boundary
@@ -38,12 +40,26 @@ If the user says 严格使用 subagent-orchestration, 子 Agent 完成, 主控�
 1. Classify the work: review-only, plan-handoff, delegated-implementation, controller-implementation, artifact editing, investigation, or closure.
 2. Create a state ledger for nontrivial work. Track owner, task, status, inputs, outputs, blockers, artifact paths, acceptance status, and next step.
 3. Define task slices with clear boundaries. Only parallelize tasks whose write sets, UI surfaces, and dependencies do not conflict.
-4. Delegate using a written contract. Include goal, scope, allowed tools, forbidden actions, expected evidence, output format, acceptance criteria, and stop conditions.
-5. Monitor without micromanaging. Poll status, inspect new artifacts, and update the ledger.
-6. Accept or reject outputs. Reject outputs that lack evidence, violate tool policy, contradict source facts, or are inconsistent with other artifacts.
-7. Write handoffs before context becomes fragile.
-8. Retire or request close for subagents that are accepted, blocked with handoff, failed, canceled, or superseded.
-9. For normal completion, close only after accepted outputs, final consistency checks, and subagent cleanup. After a `wait_agent` timeout, output the final conclusion first and make cleanup best-effort.
+4. Run the reuse gate before spawning any subagent. Reuse an existing suitable subagent with `send_input`; spawn only with a recorded reason.
+5. Delegate using a written contract. Include goal, scope, reuse decision, prior context or handoff, allowed tools, forbidden actions, expected evidence, output format, acceptance criteria, and stop conditions.
+6. Monitor without micromanaging. Poll status, inspect new artifacts, and update the ledger.
+7. Accept or reject outputs. Reject outputs that lack evidence, violate tool policy, contradict source facts, or are inconsistent with other artifacts.
+8. Write handoffs before context becomes fragile.
+9. Retire or request close for subagents that are accepted, blocked with handoff, failed, canceled, or superseded.
+10. For normal completion, close only after accepted outputs, final consistency checks, and subagent cleanup. After a `wait_agent` timeout, output the final conclusion first and make cleanup best-effort.
+
+## Subagent Reuse And Continuity
+
+Treat reuse as the default path. Creating another subagent is a decision that needs justification.
+
+- Before every `spawn_agent`, inspect the ledger for active, paused, or recently retired subagents whose scope, loaded skills, references, tools, artifact knowledge, and accepted facts match the next task.
+- Reuse an existing subagent with `send_input` when the next task depends on that subagent's context, prior investigation, loaded skill instructions, checked artifacts, or unresolved assumptions.
+- Spawn a new subagent only when the task is independent and parallelizable, requires a clearly different role or capability, has a disjoint write boundary, the prior subagent is closed/unavailable, or the prior subagent is polluted, stale, drifting, blocked, or missing required tools.
+- Record a reuse decision in the ledger for every assignment: `reused <agent-id>` or `spawned new because <reason>`.
+- Track a compact capability/context card per subagent: id, nickname, assigned scope, active skills or references loaded, allowed tools, artifact paths inspected, accepted facts, unresolved assumptions, write boundary, reuse eligibility, and cleanup status.
+- Do not assume a new subagent knows what a previous subagent knew. If replacing or splitting work, pass the relevant handoff, accepted facts, artifact paths, required skills, and tool-policy constraints explicitly.
+- Do not spawn multiple agents for adjacent follow-up questions when one existing capable agent can continue without conflicting writes or context risk.
+- If a subagent is retained for likely follow-up, record why it stays active and when it should be retired.
 
 ## Subagent Lifecycle And Cleanup
 
