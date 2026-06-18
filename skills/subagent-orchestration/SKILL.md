@@ -1,6 +1,6 @@
 ---
 name: subagent-orchestration
-description: Use this skill for long-running or multi-agent Codex work where a main controller must coordinate bounded subagents, task slices, acceptance gates, context-budget handoffs, tool-use policy, artifact consistency, evidence verification, safe resumption, strict output-quality control, or subagent lifecycle cleanup after pauses, blocking, cancellation, or completion. Strongly consider it for 架构师 Agent, 主控 Agent, 走读, 审核, 审计, 评审, 实施清单, 修改建议, 任务拆分, 后续实现 Agent, 交给开发 Agent, 子 Agent 完成, 主控不要自己干活, 主控不直接写代码, or other review-to-handoff and delegated-implementation workflows where the controller should produce evidence-backed plans, delegate implementation, and enforce acceptance gates before code is changed or accepted. Also consider it for concrete deliverables such as 报告, PPT, Excel, 网页, 图片, 代码, 测试证据, or release packages that require 主控, 验收标准, 验证节点, 产物一致性, or cross-artifact quality control after superpowers:using-superpowers performs the first process-skill decision.
+description: Use this skill for long-running or multi-agent Codex work where a main controller must coordinate bounded subagents, task slices, acceptance gates, context-budget handoffs, tool-use policy, artifact consistency, evidence verification, safe resumption, strict output-quality control, or subagent lifecycle cleanup after pauses, blocking, cancellation, or completion. Strongly consider it for 架构师 Agent, 主控 Agent, 走读, 审核, 审计, 评审, 实施清单, 修改建议, 任务拆分, 后续实现 Agent, 交给开发 Agent, 子 Agent 完成, 主控不要自己干活, 主控不直接写代码, or other review-to-handoff and delegated-implementation workflows where the controller should produce evidence-backed plans, delegate implementation, and enforce acceptance gates before code is changed or accepted. Also consider it for concrete deliverables such as 报告, PPT, Excel, 网页, 图片, 代码, 测试证据, or release packages that require 主控, 验收标准, 验证节点, 产物一致性, or cross-artifact quality control after superpowers:using-superpowers performs the first process-skill decision. Use it as an orchestration helper for server/page regression, 服务器页面回归, 业务流程测试, 验收测试, acceptance testing, UI/API/DB evidence runs, 多角色覆盖, 覆盖矩阵, PASS/FAIL/BLOCKED reports, screenshots, logs, JSON evidence, or any testing workflow where a controller must plan coverage, delegate static/data/UI slices, and independently accept evidence.
 ---
 
 # Subagent Orchestration
@@ -8,6 +8,18 @@ description: Use this skill for long-running or multi-agent Codex work where a m
 This skill does not replace skill selection. Use `superpowers:using-superpowers` or the host platform's skill-discovery rules first. Invoke this skill only after the work is classified as long-running, multi-agent, handoff-sensitive, artifact-consistency-heavy, or deliverable-oriented work that needs a main controller, acceptance gates, evidence verification, or strict output-quality control.
 
 Use this skill to run reliable long-running work with one main controller and one or more bounded subagents. The main controller owns planning, delegation, acceptance, permissions, handoffs, and final consistency. Subagents execute scoped tasks and return evidence for acceptance.
+
+## Testing And Acceptance Trigger
+
+After `superpowers:using-superpowers` performs the first process-skill decision, invoke this skill for testing or acceptance work when the prompt includes two or more of these signals:
+
+- Server/page regression, 服务器页面回归, 巡检, 验收测试, 业务流程测试, acceptance testing, release verification, or batch regression.
+- UI/browser evidence plus API, DB, fixture, log, or code evidence.
+- Multiple roles, modules, pages, task slices, or independent coverage dimensions.
+- A coverage matrix, PASS/FAIL/BLOCKED report, screenshots, JSON evidence, reproduction paths, or defect ledger.
+- A user expects 主控, 子 Agent, evidence acceptance, handoff, or final consistency across artifacts.
+
+For shared browser or UI surfaces, keep one active UI operator. Delegate static mapping, data preparation, API checks, report drafting, and evidence review to separate subagents only when their scopes do not conflict.
 
 ## Role Contract
 

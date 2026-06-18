@@ -17,6 +17,7 @@
 - 需要把工具使用证明作为验收门槛。
 - 上下文变长、任务暂停或 agent 换班时，需要交接文档。
 - 需要并行推进但又不能丢失状态或责任边界。
+- 服务器页面回归、业务流程测试、验收测试等需要覆盖矩阵、截图、日志、JSON 证据、`PASS/FAIL/BLOCKED` 报告，且主控需要验收多个证据来源。
 
 ## 与 using-superpowers 配合使用
 
@@ -25,7 +26,7 @@
 简单判断：
 
 ```text
-是否需要多个执行者、多个产物、跨上下文延续、或独立验收？
+是否需要多个执行者、多个产物、跨上下文延续、独立验收、或多证据测试回归？
 是 -> subagent-orchestration
 否 -> 只用 using-superpowers 找到对应领域 skill
 ```
@@ -67,6 +68,7 @@ This release package contains one independent skill:
 - Required tool usage must be proven before acceptance.
 - Handoff documents are needed when context grows, work pauses, or agents are replaced.
 - Parallel work must remain coordinated without losing state or responsibility boundaries.
+- Server/page regression, business-flow testing, and acceptance testing need coverage matrices, screenshots, logs, JSON evidence, `PASS/FAIL/BLOCKED` reports, or controller acceptance across multiple evidence sources.
 
 ## Working with using-superpowers
 
@@ -75,7 +77,7 @@ This release package contains one independent skill:
 Use this quick decision rule:
 
 ```text
-Does the task need multiple executors, multiple artifacts, cross-context continuation, or independent acceptance?
+Does the task need multiple executors, multiple artifacts, cross-context continuation, independent acceptance, or multi-evidence test regression?
 Yes -> subagent-orchestration
 No  -> use using-superpowers to select the relevant domain skill
 ```
