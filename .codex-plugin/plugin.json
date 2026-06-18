@@ -1,0 +1,24 @@
+{
+  "name": "subagent-orchestration",
+  "version": "0.1.0",
+  "description": "Main-controller workflows for long-running Codex tasks, multi-agent delegation, evidence checks, and test regressions.",
+  "author": {
+    "name": "Zhonghao"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Subagent Orchestration",
+    "shortDescription": "Coordinate main-controller and subagent workflows.",
+    "longDescription": "Subagent Orchestration helps Codex plan, delegate, verify, hand off, and close long-running multi-agent work with explicit acceptance gates and evidence checks.",
+    "developerName": "Zhonghao",
+    "category": "Productivity",
+    "capabilities": [
+      "Main-controller planning",
+      "Subagent delegation",
+      "Acceptance gates",
+      "Evidence verification",
+      "Handoff and cleanup"
+    ],
+    "defaultPrompt": "Use subagent-orchestration to coordinate a long-running task with a main controller, bounded subagents, acceptance gates, evidence verification, handoffs, and cleanup."
+  }
+}
