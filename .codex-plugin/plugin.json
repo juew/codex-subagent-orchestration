@@ -1,6 +1,6 @@
 {
   "name": "subagent-orchestration",
-  "version": "0.1.0",
+  "version": "0.1.0+codex.20260622-delegated-testing",
   "description": "Main-controller workflows for long-running Codex tasks, multi-agent delegation, evidence checks, and test regressions.",
   "author": {
     "name": "Zhonghao"
@@ -19,6 +19,6 @@
       "Evidence verification",
       "Handoff and cleanup"
     ],
-    "defaultPrompt": "Use subagent-orchestration to coordinate a long-running task with a main controller, bounded subagents, acceptance gates, evidence verification, handoffs, and cleanup."
+    "defaultPrompt": "Use subagent-orchestration to coordinate a long-running task with a main controller, bounded subagents, acceptance gates, evidence verification, handoffs, and cleanup. For testing work, use delegated-testing by default: the main controller plans and accepts evidence, while UI/test subagents perform the actual browser, API, data, screenshot, or role-switching actions unless an explicit exception is recorded."
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: subagent-orchestration
-description: Use for long-running or multi-agent Codex work needing a main controller, bounded subagents, delegation, handoffs, acceptance gates, evidence verification, artifact consistency, or cleanup. Consider for 主控/子 Agent, 任务拆分, 评审/审核/走读, 后续实现 Agent, server/page regression, 业务流程测试, 验收测试, UI/API/DB evidence, coverage matrix, and PASS/FAIL/BLOCKED reports.
+description: Use for long-running or multi-agent Codex work needing a main controller, bounded subagents, delegation, handoffs, acceptance gates, evidence verification, artifact consistency, or cleanup. Consider for 主控/子 Agent, 主控制定计划, agent 实际操作测试, delegated-testing, 任务拆分, 评审/审核/走读, server/page regression, 业务流程测试, 验收测试, UI/API/DB evidence, coverage matrix, and PASS/FAIL/BLOCKED reports.
 ---
 
 # Subagent Orchestration
@@ -19,7 +19,11 @@ After `superpowers:using-superpowers` performs the first process-skill decision,
 - A coverage matrix, PASS/FAIL/BLOCKED report, screenshots, JSON evidence, reproduction paths, or defect ledger.
 - A user expects 主控, 子 Agent, evidence acceptance, handoff, or final consistency across artifacts.
 
-For shared browser or UI surfaces, keep one active UI operator. Delegate static mapping, data preparation, API checks, report drafting, and evidence review to separate subagents only when their scopes do not conflict.
+Testing and acceptance work defaults to `delegated-testing`: the main controller plans coverage, assigns bounded test slices, enforces evidence gates, accepts or rejects results, and writes the final conclusion. A UI/test subagent performs the actual browser, role-switching, page-clicking, screenshot, API probe, or data-preparation task when the platform provides a suitable subagent/tool path. The main controller may operate the UI directly only for a minimal preflight, to inspect or reproduce subagent evidence, or when no subagent/tooling path can perform the action; record that exception in the ledger.
+
+For shared browser or UI surfaces, keep one active UI operator. By default that operator should be a delegated UI/test subagent, not the main controller. Other subagents may handle static mapping, data preparation, API checks, report drafting, and evidence review only when their scopes do not conflict.
+
+If the user says 主控制定计划, agent 实际操作测试, 子 Agent 执行测试, 主控不要实操, or asks why the main controller is operating the page, treat that as a hard boundary: stop main-controller UI execution, preserve the current browser/test state, delegate the next test action to a UI/test subagent, and return the main controller to planning, monitoring, acceptance, and final reporting.
 
 ## Role Contract
 
@@ -38,6 +42,7 @@ Classify the controller's execution mode before delegating:
 
 - `review-only`: inspect, coordinate, and report. Do not edit business code, create commits, push, deploy, or run destructive commands.
 - `plan-handoff`: turn reviewed findings into an implementation plan, task ledger, acceptance criteria, or prompts for later implementation agents. Do not implement the tasks.
+- `delegated-testing`: execute acceptance or regression tests through bounded subagents. The main controller owns the test plan, ledger, evidence contract, acceptance gates, final consistency, and final verdict; UI/test subagents perform the actual browser/API/data actions unless an explicit exception is recorded.
 - `delegated-implementation`: implement after explicit user authorization, but implementation work is assigned to subagents. The main controller plans, delegates, reviews evidence, resolves conflicts, runs or requests verification, and decides acceptance; it does not directly edit business code.
 - `controller-implementation`: the main controller may directly edit files only when the user explicitly authorizes the controller itself to implement, or when the edit is limited to orchestration artifacts such as ledgers, handoffs, prompts, or verification notes.
 
