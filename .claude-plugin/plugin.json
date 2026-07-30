@@ -1,0 +1,17 @@
+{
+  "name": "subagent-orchestration",
+  "displayName": "Subagent Orchestration",
+  "version": "0.1.0",
+  "description": "Main-controller workflows for long-running Claude Code tasks, multi-agent delegation, evidence checks, and test regressions.",
+  "author": {
+    "name": "Zhonghao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "orchestration",
+    "subagents",
+    "delegation",
+    "acceptance-gates",
+    "testing"
+  ]
+}

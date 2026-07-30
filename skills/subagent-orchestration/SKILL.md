@@ -1,17 +1,29 @@
 ---
 name: subagent-orchestration
-description: Use for long-running or multi-agent Codex work needing a main controller, bounded subagents, delegation, handoffs, acceptance gates, evidence verification, artifact consistency, or cleanup. Consider for 主控/子 Agent, 主控制定计划, agent 实际操作测试, delegated-testing, 任务拆分, 评审/审核/走读, server/page regression, 业务流程测试, 验收测试, UI/API/DB evidence, coverage matrix, and PASS/FAIL/BLOCKED reports.
+description: Use for long-running or multi-agent work needing a main controller, bounded subagents, delegation, handoffs, acceptance gates, evidence verification, artifact consistency, or cleanup. Consider for 主控/子 Agent, 主控制定计划, agent 实际操作测试, delegated-testing, 任务拆分, 评审/审核/走读, server/page regression, 业务流程测试, 验收测试, UI/API/DB evidence, coverage matrix, and PASS/FAIL/BLOCKED reports.
 ---
 
 # Subagent Orchestration
 
-This skill does not replace skill selection. Use `superpowers:using-superpowers` or the host platform's skill-discovery rules first. Invoke this skill only after the work is classified as long-running, multi-agent, handoff-sensitive, artifact-consistency-heavy, or deliverable-oriented work that needs a main controller, acceptance gates, evidence verification, or strict output-quality control.
+This skill does not replace skill selection. Follow the host platform's normal skill-discovery rules first. Invoke this skill only after the work is classified as long-running, multi-agent, handoff-sensitive, artifact-consistency-heavy, or deliverable-oriented work that needs a main controller, acceptance gates, evidence verification, or strict output-quality control.
 
 Use this skill to run reliable long-running work with one main controller and one or more bounded subagents. The main controller owns planning, delegation, acceptance, permissions, handoffs, and final consistency. Subagents execute scoped tasks and return evidence for acceptance.
 
+## Claude Code Tool Mapping
+
+In Claude Code, orchestration uses these primitives:
+
+- **Spawn a subagent**: the `Agent` tool. Pick `subagent_type` deliberately (`general-purpose` for multi-step work, `Explore` for read-only search, `Plan` for design, or a project-defined agent). Subagents run in the background by default and send a completion notification; pass `run_in_background: false` when the result is needed before continuing.
+- **Reuse / continue a subagent**: `SendMessage` with the agent's ID or name continues that agent with its context intact. This is the reuse path — a new `Agent` call always starts cold.
+- **Wait / monitor**: rely on completion notifications for background subagents; use `TaskList` / `TaskOutput` to inspect background task state. Never fabricate or predict a pending agent's result.
+- **Write isolation**: `isolation: "worktree"` gives a subagent its own git worktree when write boundaries must not overlap.
+- **Lifecycle**: Claude Code subagents terminate on their own after returning a final report; there is no explicit close/delete call. "Cleanup" here means updating the ledger to a terminal status and not sending further messages to superseded or polluted agents.
+
+A subagent's final report is not shown to the user — the main controller must relay what matters.
+
 ## Testing And Acceptance Trigger
 
-After `superpowers:using-superpowers` performs the first process-skill decision, invoke this skill for testing or acceptance work when the prompt includes two or more of these signals:
+Invoke this skill for testing or acceptance work when the prompt includes two or more of these signals:
 
 - Server/page regression, 服务器页面回归, 巡检, 验收测试, 业务流程测试, acceptance testing, release verification, or batch regression.
 - UI/browser evidence plus API, DB, fixture, log, or code evidence.
@@ -31,10 +43,10 @@ If the user says 主控制定计划, agent 实际操作测试, 子 Agent 执行�
 - A subagent owns only its assigned scope. It must not expand scope, make final product decisions, or mutate shared artifacts unless the delegation explicitly allows it.
 - A subagent returning `READY_FOR_ACCEPTANCE` means "please inspect my evidence"; it does not mean the task is complete.
 - The main controller must independently verify subagent outputs before marking work complete or allowing downstream tasks to depend on them.
-- Reuse a capable subagent for continuity by default. Spawn a new subagent only after a reuse gate records why existing agents are unsuitable.
+- Reuse a capable subagent for continuity by default (`SendMessage` to its ID/name). Spawn a new subagent only after a reuse gate records why existing agents are unsuitable.
 - A newly spawned subagent starts without another subagent's loaded skills, references, tool state, artifact knowledge, or local assumptions unless the main controller explicitly supplies them in the assignment or handoff.
-- Replace or close a subagent when it shows context pollution, repeated misinterpretation, stale assumptions, tool-policy violations, role drift, or a missing required capability.
-- Do not leave idle subagents open for convenience. Once their final status, evidence, and any required handoff are captured, request close/delete with the platform's lifecycle tool.
+- Replace a subagent when it shows context pollution, repeated misinterpretation, stale assumptions, tool-policy violations, role drift, or a missing required capability. Mark the old one `superseded` in the ledger and pass an explicit handoff to the replacement.
+- Do not keep messaging idle subagents for convenience. Once their final status, evidence, and any required handoff are captured, record a terminal status and stop interacting with them.
 
 ## Execution Boundary
 
@@ -54,45 +66,42 @@ If the user says 严格使用 subagent-orchestration, 子 Agent 完成, 主控�
 
 ## Main Workflow
 
-1. Classify the work: review-only, plan-handoff, delegated-implementation, controller-implementation, artifact editing, investigation, or closure.
-2. Create a state ledger for nontrivial work. Track owner, task, status, inputs, outputs, blockers, artifact paths, acceptance status, and next step.
+1. Classify the work: review-only, plan-handoff, delegated-testing, delegated-implementation, controller-implementation, artifact editing, investigation, or closure.
+2. Create a state ledger for nontrivial work (a scratchpad or project file). Track owner, task, status, inputs, outputs, blockers, artifact paths, acceptance status, and next step.
 3. Define task slices with clear boundaries. Only parallelize tasks whose write sets, UI surfaces, and dependencies do not conflict.
-4. Run the reuse gate before spawning any subagent. Reuse an existing suitable subagent with `send_input`; spawn only with a recorded reason.
+4. Run the reuse gate before spawning any subagent. Reuse an existing suitable subagent with `SendMessage`; spawn a new one with the `Agent` tool only with a recorded reason.
 5. Delegate using a written contract. Include goal, scope, reuse decision, prior context or handoff, allowed tools, forbidden actions, expected evidence, output format, acceptance criteria, and stop conditions.
-6. Monitor without micromanaging. Poll status, inspect new artifacts, and update the ledger.
+6. Monitor without micromanaging. Watch completion notifications, use `TaskList`/`TaskOutput` for background tasks, inspect new artifacts, and update the ledger.
 7. Accept or reject outputs. Reject outputs that lack evidence, violate tool policy, contradict source facts, or are inconsistent with other artifacts.
 8. Write handoffs before context becomes fragile.
-9. Retire or request close for subagents that are accepted, blocked with handoff, failed, canceled, or superseded.
-10. For normal completion, close only after accepted outputs, final consistency checks, and subagent cleanup. After a `wait_agent` timeout, output the final conclusion first and make cleanup best-effort.
+9. Retire subagents in the ledger once accepted, blocked with handoff, failed, canceled, or superseded.
+10. For normal completion, close the task only after accepted outputs, final consistency checks, and ledger cleanup. If a subagent never sends its completion notification but its artifacts are verifiable, output the final conclusion first and record the missing notification as a warning.
 
 ## Subagent Reuse And Continuity
 
 Treat reuse as the default path. Creating another subagent is a decision that needs justification.
 
-- Before every `spawn_agent`, inspect the ledger for active, paused, or recently retired subagents whose scope, loaded skills, references, tools, artifact knowledge, and accepted facts match the next task.
-- Reuse an existing subagent with `send_input` when the next task depends on that subagent's context, prior investigation, loaded skill instructions, checked artifacts, or unresolved assumptions.
-- Spawn a new subagent only when the task is independent and parallelizable, requires a clearly different role or capability, has a disjoint write boundary, the prior subagent is closed/unavailable, or the prior subagent is polluted, stale, drifting, blocked, or missing required tools.
-- Record a reuse decision in the ledger for every assignment: `reused <agent-id>` or `spawned new because <reason>`.
-- Track a compact capability/context card per subagent: id, nickname, assigned scope, active skills or references loaded, allowed tools, artifact paths inspected, accepted facts, unresolved assumptions, write boundary, reuse eligibility, and cleanup status.
-- Do not assume a new subagent knows what a previous subagent knew. If replacing or splitting work, pass the relevant handoff, accepted facts, artifact paths, required skills, and tool-policy constraints explicitly.
+- Before every `Agent` call, inspect the ledger for active or recently finished subagents whose scope, loaded skills, references, tools, artifact knowledge, and accepted facts match the next task.
+- Reuse an existing subagent with `SendMessage` when the next task depends on that subagent's context, prior investigation, loaded skill instructions, checked artifacts, or unresolved assumptions.
+- Spawn a new subagent only when the task is independent and parallelizable, requires a clearly different role or capability, has a disjoint write boundary, or the prior subagent is polluted, stale, drifting, blocked, or missing required tools.
+- Record a reuse decision in the ledger for every assignment: `reused <agent-name>` or `spawned new because <reason>`.
+- Track a compact capability/context card per subagent: name/ID, assigned scope, active skills or references loaded, allowed tools, artifact paths inspected, accepted facts, unresolved assumptions, write boundary, reuse eligibility, and ledger status.
+- Do not assume a new subagent knows what a previous subagent knew. If replacing or splitting work, pass the relevant handoff, accepted facts, artifact paths, required skills, and tool-policy constraints explicitly in the new prompt.
 - Do not spawn multiple agents for adjacent follow-up questions when one existing capable agent can continue without conflicting writes or context risk.
-- If a subagent is retained for likely follow-up, record why it stays active and when it should be retired.
+- If a subagent is retained for likely follow-up, record why it stays listed as reusable and when it should be retired.
 
 ## Subagent Lifecycle And Cleanup
 
-Treat subagent cleanup as part of orchestration, not as optional housekeeping.
+Treat subagent bookkeeping as part of orchestration, not as optional housekeeping.
 
-- Track every subagent in the ledger as `active`, `accepted`, `blocked-handoff-written`, `failed`, `canceled`, `superseded`, `wait-timeout`, `status-event-missing-evidence-accepted`, `close-requested`, `closed`, `close-requested-unconfirmed-warning`, `close-failed-warning`, or `cleanup-warning`.
-- Keep a subagent active only while it is doing useful work or while the main controller is waiting for evidence needed on the critical path.
-- Before final output, run at most one bounded wait-drain for subagents whose results could still affect the critical path. Do not repeatedly call `wait_agent` just to classify stale, non-critical, or cleanup-only agents.
-- After accepting a result, record the evidence and changed artifacts, then request close/delete for the subagent unless immediate follow-up requires the same context.
-- If a completion/status event is missing or delayed but artifacts, diffs, logs, screenshots, or other evidence are sufficient to verify the assigned scope, accept the result as `status-event-missing-evidence-accepted` and report the missing status event as a warning.
-- Before closing a blocked, paused, or superseded subagent, capture a handoff or explicit non-handoff reason.
-- If a platform distinguishes close, archive, delete, and cancel, use the least destructive action that stops the agent from accumulating as active state.
-- In Codex multi-agent sessions, call `multi_agent_v1.close_agent` for subagents that no longer need `send_input` or `wait_agent`; use `resume_agent` only when a closed agent's context is genuinely needed again.
-- If `wait_agent` times out, produce the final user-facing conclusion before cleanup. Treat `close_agent` after a wait timeout as best-effort only, with at most one close attempt per affected subagent unless the user explicitly asks to wait.
-- Treat `close_agent` as idempotent best-effort cleanup, not as a required deletion acknowledgment. If close confirmation is missing, duplicated, delayed, or failed, record one terminal warning state per subagent and continue.
-- Do not create replacement subagents until the old one is marked `superseded` and either `closed` or recorded as a terminal cleanup warning such as `close-requested-unconfirmed-warning` or `close-failed-warning`, unless both must briefly overlap for a bounded handoff.
+- Track every subagent in the ledger as `active`, `accepted`, `blocked-handoff-written`, `failed`, `canceled`, `superseded`, `notification-pending`, or `evidence-accepted-without-notification`.
+- Keep interacting with a subagent only while it is doing useful work or while the main controller is waiting for evidence needed on the critical path.
+- Before final output, run at most one bounded check (`TaskList`/`TaskOutput`) for subagents whose results could still affect the critical path. Do not poll repeatedly just to classify stale, non-critical agents — completion notifications arrive on their own.
+- After accepting a result, record the evidence and changed artifacts, then mark the subagent's terminal status unless immediate follow-up requires the same context.
+- If a completion notification is missing or delayed but artifacts, diffs, logs, screenshots, or other evidence are sufficient to verify the assigned scope, accept the result as `evidence-accepted-without-notification` and report the missing notification as a warning.
+- Before superseding a blocked or paused subagent, capture a handoff or explicit non-handoff reason.
+- Use `TaskStop` only for a background task that must actually stop (runaway, superseded, or wrong scope) — not as routine cleanup.
+- Do not create replacement subagents until the old one is marked `superseded` in the ledger with its handoff captured, unless both must briefly overlap for a bounded handoff.
 
 ## Delegation Contract
 
@@ -123,7 +132,7 @@ The main controller must reject a subagent result when:
 
 Accepted evidence should be traceable from task to source material, change, verification result, and final artifact.
 
-When the status event is missing or delayed, sufficient inspected evidence may satisfy acceptance. Record the missing event as a warning instead of waiting indefinitely for a status update.
+When the completion notification is missing or delayed, sufficient inspected evidence may satisfy acceptance. Record the missing notification as a warning instead of waiting indefinitely.
 
 ## Tool Policy Enforcement
 
@@ -174,7 +183,7 @@ Parallelize only when all conditions hold:
 - Tasks do not operate the same UI, process, branch, database, or external object.
 - Tasks do not write the same file or artifact.
 - No task depends on another task's unaccepted result.
-- Each subagent has a separate output path or write boundary.
+- Each subagent has a separate output path or write boundary (use `isolation: "worktree"` when subagents must write inside the same repo).
 
 Use one active UI operator per shared UI surface. Use document or review agents in parallel only if their write sets are separate or read-only.
 
@@ -192,8 +201,8 @@ For work with multiple final artifacts, the main controller must run a final con
 
 Do not close a long-running task until:
 
-- Every subtask is accepted, blocked with a handoff, explicitly canceled, accepted as `status-event-missing-evidence-accepted`, or recorded as `wait-timeout` with the missing result disclosed as a risk.
-- Every subagent that no longer needs interaction has been closed/deleted, has cleanup requested, has a terminal cleanup warning, or has a recorded reason for staying active. After a `wait_agent` timeout, this check becomes best-effort cleanup after the final conclusion, with cleanup failures reported as warnings.
+- Every subtask is accepted, blocked with a handoff, explicitly canceled, accepted as `evidence-accepted-without-notification`, or recorded as `notification-pending` with the missing result disclosed as a risk.
+- Every subagent has a terminal ledger status or a recorded reason for staying active/reusable.
 - Shared artifacts are consistent.
 - Required verification commands or visual checks have run.
 - The final answer states what changed, what was verified, and any remaining risk.

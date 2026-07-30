@@ -1,10 +1,10 @@
-# Subagent Orchestration for Codex
+# Subagent Orchestration
 
 中文 | [English](#english)
 
 ## 中文
 
-`subagent-orchestration` 是一个通用 Codex skill，用于长流程、多子 agent 的任务编排。它帮助主控 agent 规划任务、分派边界清晰的子任务、设置验收门槛、管理上下文交接、监督工具使用，并在结束前检查所有正式产物的一致性。
+`subagent-orchestration` 是一个通用 Claude Code skill，用于长流程、多子 agent 的任务编排。它帮助主控 agent 规划任务、分派边界清晰的子任务、设置验收门槛、管理上下文交接、监督工具使用，并在结束前检查所有正式产物的一致性。
 
 适用场景：
 
@@ -25,34 +25,43 @@
 - 上下文变长、任务暂停、规则变化、结论撤销或 agent 换班时必须写交接文档。
 - 如果用户要求某个工具，工具使用证明必须成为验收门槛。
 
-与 `using-superpowers` 配合时，先让 `using-superpowers` 判断当前任务应该使用哪些 skill；只有当任务被判断为长流程、多 agent、需要 handoff 或需要独立验收时，才启用 `subagent-orchestration`。
+### 编排原语
 
-快速判断：
+skill 中的编排动作对应 Claude Code 的以下能力：
+
+| 编排动作 | Claude Code |
+|---|---|
+| 派生子 agent | `Agent` 工具，按任务选择 `subagent_type` |
+| 复用子 agent | `SendMessage`，按 agent 名称或 ID 延续其上下文 |
+| 等待与监控 | 后台完成通知，配合 `TaskList` / `TaskOutput` |
+| 写边界隔离 | `isolation: "worktree"` |
+| 生命周期收尾 | 子 agent 返回最终报告后自行终止，总账置终态即可 |
+
+需要注意：子 agent 的最终报告不会直接展示给用户，主控必须转述关键结论。
+
+### 何时启用
+
+不要把 `subagent-orchestration` 作为所有任务的默认入口；小任务强行启用会增加文书和协调成本。
 
 ```text
-是否需要多个执行者、多个产物、跨上下文延续、或独立验收？
+是否需要多个执行者、多个产物、跨上下文延续、独立验收、或多证据测试回归？
 是 -> subagent-orchestration
-否 -> 只用 using-superpowers 找到对应领域 skill
+否 -> 直接做，或使用对应的领域 skill
 ```
 
 推荐启动话术：
 
 ```text
-请先按 using-superpowers 选择适用 skill。
-如果任务被判断为长流程、多 agent、或需要 handoff，
-再使用 subagent-orchestration 作为主控流程。
 如果当前角色是架构师/审核/主控，请保持 review-only 或 plan-handoff。
 收到明确实现授权后，默认进入 delegated-implementation：
 子 Agent 写业务代码，主控只做编排、复核、裁决和验收。
 ```
 
-不要把 `subagent-orchestration` 作为所有任务的默认入口；小任务强行启用会增加文书和协调成本。
-
 建议和领域 skill 配合使用；领域规则保留在对应领域 skill 中。
 
 ## English
 
-`subagent-orchestration` is a general-purpose Codex skill for long-running work that uses a main controller and bounded subagents. It helps the controller plan work, delegate scoped tasks, enforce acceptance gates, manage context handoffs, supervise required tool usage, and verify final artifact consistency.
+`subagent-orchestration` is a general-purpose Claude Code skill for long-running work that uses a main controller and bounded subagents. It helps the controller plan work, delegate scoped tasks, enforce acceptance gates, manage context handoffs, supervise required tool usage, and verify final artifact consistency.
 
 Use it for:
 
@@ -73,28 +82,37 @@ Core principles:
 - Write handoffs when context gets long, work pauses, rules change, decisions are withdrawn, or agents are replaced.
 - Required tool usage must be proven before acceptance.
 
-When using this with `using-superpowers`, let `using-superpowers` decide which skills apply first. Invoke `subagent-orchestration` only when the task is classified as long-running, multi-agent, handoff-sensitive, or requiring independent acceptance.
+### Orchestration primitives
 
-Quick decision rule:
+The skill's orchestration actions map to these Claude Code capabilities:
+
+| Orchestration action | Claude Code |
+|---|---|
+| Spawn a subagent | `Agent` tool, picking a `subagent_type` per task |
+| Reuse a subagent | `SendMessage`, continuing that agent by name or ID with its context intact |
+| Wait and monitor | Completion notifications, with `TaskList` / `TaskOutput` |
+| Write isolation | `isolation: "worktree"` |
+| Lifecycle wind-down | Subagents terminate after returning a final report; move the ledger entry to a terminal status |
+
+Note that a subagent's final report is not shown to the user directly, so the controller must relay what matters.
+
+### When to use it
+
+Do not make `subagent-orchestration` the default entry point for every task; forcing it onto small tasks adds coordination overhead.
 
 ```text
-Does the task need multiple executors, multiple artifacts, cross-context continuation, or independent acceptance?
+Does the task need multiple executors, multiple artifacts, cross-context continuation, independent acceptance, or multi-evidence test regression?
 Yes -> subagent-orchestration
-No  -> use using-superpowers to select the relevant domain skill
+No  -> just do the work, or use the relevant domain skill
 ```
 
 Recommended startup prompt:
 
 ```text
-First use using-superpowers to select the applicable skills.
-If the task is classified as long-running, multi-agent, or requiring handoff,
-then use subagent-orchestration as the controller workflow.
 If the current role is architect/reviewer/controller, stay in review-only or
 plan-handoff mode until explicit implementation authorization is given.
 After authorization, default to delegated-implementation: subagents write
 business code and the controller verifies instead of editing directly.
 ```
-
-Do not make `subagent-orchestration` the default entry point for every task; forcing it onto small tasks adds coordination overhead.
 
 Pair this skill with domain skills; keep domain-specific rules in the relevant domain skill.

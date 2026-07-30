@@ -1,14 +1,14 @@
 # Delegation Contract Template
 
-Use this template when assigning work to a subagent.
+Use this template when assigning work to a subagent (as the `Agent` tool prompt, or a `SendMessage` follow-up to a reused agent).
 
 ```markdown
 ## Assignment
 
-Agent:
+Agent (name/type):
 Task ID:
 Reasoning level / execution mode:
-Reuse decision:
+Reuse decision (reused <agent-name> | spawned new because <reason>):
 
 ## Objective
 
@@ -19,7 +19,7 @@ Do not complete:
 
 Allowed files/systems/UI:
 Forbidden files/systems/UI:
-Write boundary:
+Write boundary (worktree isolation? output path?):
 
 ## Inputs
 
@@ -27,7 +27,7 @@ References:
 Artifacts:
 Prior accepted decisions:
 Prior subagent context or handoff:
-Required skills or references already loaded:
+Required skills or references to load:
 
 ## Required Tools
 
@@ -54,10 +54,6 @@ Status:
 Changed artifacts:
 Evidence paths:
 Risks:
-Reusable for follow-up?:
-Can close/delete this subagent after acceptance?:
-Close confirmation status:
-Cleanup warnings:
-Status-event warnings:
+Reusable for follow-up (via SendMessage)?:
 Recommended next step:
 ```

@@ -19,14 +19,11 @@ Out of scope:
 
 Overall status:
 Active subagents:
-Reusable subagents and capabilities:
-Paused/retired subagents:
-Closed/deleted subagents:
-Close pending/unconfirmed subagents:
+Reusable subagents and capabilities (SendMessage targets):
+Retired subagents (accepted/failed/canceled/superseded):
 Superseded subagents and replacement handoffs:
-Subagents intentionally left active and why:
-Cleanup warnings:
-Status-event warnings:
+Subagents intentionally kept reusable and why:
+Notification warnings (evidence accepted without completion notification):
 External systems/processes:
 
 ## Completed
