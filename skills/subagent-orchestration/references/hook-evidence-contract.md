@@ -7,12 +7,12 @@ They never create, update, or delete a ledger or evidence artifact. When that le
 
 ## Hook Trust
 
-Hooks execute the plugin's checked-in Python command handler during Codex events. Review and trust
-`hooks/hooks.json` and `scripts/verify_ledger.py` before installing this plugin; the handlers are
-read-only, but deterministic enforcement is executable code rather than instruction text. After
-installing the complete plugin, open Codex `/hooks`, open this plugin's hook configuration, and
-trust and enable its handlers there. Deterministic enforcement does not run until that enablement;
-copying the skill alone supplies instructions only.
+Hooks execute the plugin's checked-in Python command handler during Codex events. Before
+installation, inspect the checked-in `hooks/hooks.json` and `scripts/verify_ledger.py` source; the
+handlers are read-only, but deterministic enforcement is executable code rather than instruction
+text. After installing the complete plugin, open Codex `/hooks`, open this plugin's installed hook
+configuration, review it, and trust and enable its handlers there. Deterministic enforcement does
+not run until that post-install enablement; copying the skill alone supplies instructions only.
 
 Use [the JSON schema](../../../schemas/ledger.schema.json) as the ledger shape. The ledger root
 must be an existing absolute workspace directory. Evidence paths are always relative to that root.
