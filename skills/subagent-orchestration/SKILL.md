@@ -135,9 +135,9 @@ When a user or task requires specific tools, treat that requirement as a hard ac
 
 - Put required tools in the delegation contract.
 - Require subagents to report which tool performed the key action and which tool produced evidence.
-- If a required tool is unavailable, the subagent must return `BLOCKED_REQUIRED_TOOL_UNAVAILABLE`.
+- If a required tool is unavailable, the human-readable blocker may say `BLOCKED_REQUIRED_TOOL_UNAVAILABLE`, but the final `ORCHESTRATION_REPORT` status must be `BLOCKED`. Report the actual, possibly partial or empty, `skills_loaded` and `tools_proven` arrays.
 - If a screenshot or artifact is produced by a fallback path, it must be labeled as fallback or diagnostic.
-- The main controller must reject `READY_FOR_ACCEPTANCE` when required tool usage is not proven.
+- The main controller must reject `READY_FOR_ACCEPTANCE` when required skill or tool usage is not proven. Full ledger requirement coverage is enforced for `READY_FOR_ACCEPTANCE`; `BLOCKED`, `FAIL`, and `NEEDS_CLARIFICATION` still require structurally valid proof arrays but may report partial or empty actual proof.
 
 For UI tasks, separate operation evidence from formal evidence. A whole-screen diagnostic screenshot may help debugging, but it is not automatically formal evidence.
 
