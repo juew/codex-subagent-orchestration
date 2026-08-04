@@ -16,7 +16,7 @@
 <p align="center">
   <img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-skill-D97757">
   <img alt="Codex" src="https://img.shields.io/badge/Codex-plugin-22D3EE">
-  <img alt="No dependencies" src="https://img.shields.io/badge/dependencies-none-10B981">
+  <img alt="Python 3 required" src="https://img.shields.io/badge/Python%203-required-3776AB">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-111827">
 </p>
 
