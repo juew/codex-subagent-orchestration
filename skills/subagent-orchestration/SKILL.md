@@ -55,7 +55,7 @@ If the user says 严格使用 subagent-orchestration, 子 Agent 完成, 主控�
 ## Main Workflow
 
 1. Classify the work: review-only, plan-handoff, delegated-implementation, controller-implementation, artifact editing, investigation, or closure.
-2. Create a state ledger for nontrivial work at `<cwd>/.codex/subagent-orchestration/ledger.json`. Track owner `agent_id`, task, status, dependencies, `skills_required`, `tools_required`, inputs, outputs, blockers, artifact paths, acceptance status, and next step. Use `references/hook-evidence-contract.md` and [`../../schemas/ledger.schema.json`](../../schemas/ledger.schema.json).
+2. Create a state ledger for nontrivial work at `<cwd>/.codex/subagent-orchestration/ledger.json`. Set its `root` to that same current hook workspace (`<cwd>`); the resolved root must equal the hook process current working directory. Track owner `agent_id`, task, status, dependencies, `skills_required`, `tools_required`, inputs, outputs, blockers, artifact paths, acceptance status, and next step. Use `references/hook-evidence-contract.md` and [`../../schemas/ledger.schema.json`](../../schemas/ledger.schema.json).
 3. Define task slices with clear boundaries. Only parallelize tasks whose write sets, UI surfaces, and dependencies do not conflict.
 4. Run the reuse gate before spawning any subagent. Reuse an existing suitable subagent with `send_input`; spawn only with a recorded reason.
 5. Delegate using a written contract. Include goal, scope, reuse decision, prior context or handoff, allowed tools, forbidden actions, expected evidence, output format, acceptance criteria, and stop conditions.
@@ -125,7 +125,7 @@ The main controller must reject a subagent result when:
 
 Accepted evidence should be traceable from task to source material, change, verification result, and final artifact.
 
-For every controller-accepted task, record `skills_loaded`, `tools_proven`, accepted metadata, and relative evidence paths before setting `status` to `accepted`. The `Stop` hook verifies dependency acceptance, required coverage, and non-empty evidence files beneath the ledger root. Hooks are read-only and silently no-op when the fixed ledger path is absent.
+For every controller-accepted task, record `skills_loaded`, `tools_proven`, accepted metadata, and relative evidence paths before setting `status` to `accepted`. The `Stop` hook verifies dependency acceptance, required coverage, and non-empty evidence files beneath the current hook workspace recorded as the ledger root. Hooks are read-only and silently no-op when the fixed ledger path is absent.
 
 When the status event is missing or delayed, sufficient inspected evidence may satisfy acceptance. Record the missing event as a warning instead of waiting indefinitely for a status update.
 

@@ -8,6 +8,9 @@ from pathlib import Path
 
 LEDGER_RELATIVE_PATH = Path(".codex/subagent-orchestration/ledger.json")
 REPORT_PREFIX = "ORCHESTRATION_REPORT:"
+LEDGER_ROOT_ERROR = (
+    "ledger root must be an existing absolute directory resolving to the current hook cwd"
+)
 ALLOWED_REPORT_STATUSES = {
     "READY_FOR_ACCEPTANCE",
     "BLOCKED",
@@ -244,7 +247,7 @@ def handle_subagentstop(ledger, payload):
         return
     root = ledger_root(ledger)
     if root is None:
-        block("ledger root must be an existing absolute directory")
+        block(LEDGER_ROOT_ERROR)
         return
     error = report_error(task_id, task, report, root)
     if error:
@@ -258,7 +261,10 @@ def ledger_root(ledger):
     path = Path(root)
     if not path.is_absolute() or not path.is_dir():
         return None
-    return path.resolve()
+    resolved = path.resolve()
+    if resolved != Path.cwd().resolve():
+        return None
+    return resolved
 
 
 def evidence_error(task_id, evidence_paths, root, require_paths=True):
@@ -303,7 +309,7 @@ def evidence_error(task_id, evidence_paths, root, require_paths=True):
 def handle_stop(ledger):
     root = ledger_root(ledger)
     if root is None:
-        block("ledger root must be an existing absolute directory")
+        block(LEDGER_ROOT_ERROR)
         return
     tasks = ledger["tasks"]
     for task_id, task in tasks.items():
