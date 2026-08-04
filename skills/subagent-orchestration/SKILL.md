@@ -55,7 +55,7 @@ If the user says 严格使用 subagent-orchestration, 子 Agent 完成, 主控�
 ## Main Workflow
 
 1. Classify the work: review-only, plan-handoff, delegated-implementation, controller-implementation, artifact editing, investigation, or closure.
-2. Create a state ledger for nontrivial work at `<cwd>/.codex/subagent-orchestration/ledger.json`. Track owner `agent_id`, task, status, dependencies, `skills_required`, `tools_required`, inputs, outputs, blockers, artifact paths, acceptance status, and next step. Use `references/hook-evidence-contract.md` and `schemas/ledger.schema.json`.
+2. Create a state ledger for nontrivial work at `<cwd>/.codex/subagent-orchestration/ledger.json`. Track owner `agent_id`, task, status, dependencies, `skills_required`, `tools_required`, inputs, outputs, blockers, artifact paths, acceptance status, and next step. Use `references/hook-evidence-contract.md` and [`../../schemas/ledger.schema.json`](../../schemas/ledger.schema.json).
 3. Define task slices with clear boundaries. Only parallelize tasks whose write sets, UI surfaces, and dependencies do not conflict.
 4. Run the reuse gate before spawning any subagent. Reuse an existing suitable subagent with `send_input`; spawn only with a recorded reason.
 5. Delegate using a written contract. Include goal, scope, reuse decision, prior context or handoff, allowed tools, forbidden actions, expected evidence, output format, acceptance criteria, and stop conditions.

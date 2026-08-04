@@ -5,6 +5,12 @@ Codex discovers this plugin's command hooks from `hooks/hooks.json`. The handler
 They never create, update, or delete a ledger or evidence artifact. When that ledger is absent,
 `PreToolUse`, `SubagentStop`, and `Stop` succeed silently with no output.
 
+## Hook Trust
+
+Hooks execute the plugin's checked-in Python command handler during Codex events. Review and trust
+`hooks/hooks.json` and `scripts/verify_ledger.py` before installing this plugin; the handlers are
+read-only, but deterministic enforcement is executable code rather than instruction text.
+
 Use [the JSON schema](../../../schemas/ledger.schema.json) as the ledger shape. The ledger root
 must be an existing absolute workspace directory. Evidence paths are always relative to that root.
 
@@ -63,5 +69,9 @@ matching subagent's final message must end with exactly one line of this form:
 ORCHESTRATION_REPORT: {"task_id":"task-1","status":"READY_FOR_ACCEPTANCE","skills_loaded":["superpowers:test-driven-development"],"tools_proven":["playwright"],"evidence_paths":{"commands":["evidence/tests.log"]}}
 ```
 
-`task_id` must match the owned ledger task. `skills_loaded` and `tools_proven` must cover the
-ledger requirements. Missing or malformed reports block using `{"decision":"block","reason":"..."}`.
+`task_id` selects the ledger task and that task's `agent_id` must match the hook agent. `status`
+must be `READY_FOR_ACCEPTANCE`, `BLOCKED`, `FAIL`, or `NEEDS_CLARIFICATION`; `skills_loaded` and
+`tools_proven` must cover the ledger requirements. `evidence_paths` must be a valid path-group
+object. `READY_FOR_ACCEPTANCE` requires at least one relative, regular, non-empty file below the
+ledger root; the other terminal statuses may provide no paths. Missing or malformed reports block
+using `{"decision":"block","reason":"..."}`.

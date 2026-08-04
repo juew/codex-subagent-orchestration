@@ -8,6 +8,12 @@ from pathlib import Path
 
 LEDGER_RELATIVE_PATH = Path(".codex/subagent-orchestration/ledger.json")
 REPORT_PREFIX = "ORCHESTRATION_REPORT:"
+ALLOWED_REPORT_STATUSES = {
+    "READY_FOR_ACCEPTANCE",
+    "BLOCKED",
+    "FAIL",
+    "NEEDS_CLARIFICATION",
+}
 
 
 def emit(payload):
@@ -90,6 +96,15 @@ def task_marker(value):
     return None
 
 
+def is_marked_spawn(payload):
+    if not isinstance(payload, dict):
+        return False
+    name = tool_name(payload)
+    return (name == "spawn_agent" or name.endswith(".spawn_agent")) and task_marker(
+        tool_input(payload)
+    ) is not None
+
+
 def supplied_skills(value):
     items = value.get("items") if isinstance(value, dict) else None
     if not isinstance(items, list):
@@ -158,22 +173,27 @@ def final_message(payload):
     return None
 
 
-def report_error(task_id, task, message):
+def parse_report(message):
     if not isinstance(message, str) or not message:
-        return "task %s requires a final %s JSON object" % (task_id, REPORT_PREFIX)
+        return None, "requires a final %s JSON object" % REPORT_PREFIX
     line = message.splitlines()[-1]
     if not line.startswith(REPORT_PREFIX):
-        return "task %s requires final line %s followed by one JSON object" % (task_id, REPORT_PREFIX)
+        return None, "requires final line %s followed by one JSON object" % REPORT_PREFIX
     try:
         report = json.loads(line[len(REPORT_PREFIX) :].strip())
     except json.JSONDecodeError:
-        return "task %s report must contain valid JSON" % task_id
+        return None, "report must contain valid JSON"
     if not isinstance(report, dict):
-        return "task %s report must be a JSON object" % task_id
+        return None, "report must be a JSON object"
+    return report, None
+
+
+def report_error(task_id, task, report, root):
     if report.get("task_id") != task_id:
         return "task %s report task_id does not match" % task_id
-    if not isinstance(report.get("status"), str) or not report["status"]:
-        return "task %s report is missing status" % task_id
+    status = report.get("status")
+    if status not in ALLOWED_REPORT_STATUSES:
+        return "task %s report has invalid status" % task_id
     for required_field, label in (("skills_loaded", "skill proof"), ("tools_proven", "tool proof")):
         supplied = string_set(report.get(required_field))
         if supplied is None:
@@ -190,24 +210,43 @@ def report_error(task_id, task, message):
                 ", ".join(missing),
             )
     evidence_paths = report.get("evidence_paths")
-    if not isinstance(evidence_paths, dict):
-        return "task %s report is missing evidence_paths" % task_id
-    return None
+    return evidence_error(
+        task_id,
+        evidence_paths,
+        root,
+        require_paths=status == "READY_FOR_ACCEPTANCE",
+    )
 
 
 def handle_subagentstop(ledger, payload):
     agent_id = payload.get("agent_id")
     if not isinstance(agent_id, str):
         return
-    matches = [
-        (task_id, task)
-        for task_id, task in ledger["tasks"].items()
-        if isinstance(task, dict) and task.get("agent_id") == agent_id
-    ]
-    if not matches:
+    if not any(
+        isinstance(task, dict) and task.get("agent_id") == agent_id
+        for task in ledger["tasks"].values()
+    ):
         return
-    task_id, task = matches[0]
-    error = report_error(task_id, task, final_message(payload))
+    report, parse_error = parse_report(final_message(payload))
+    if parse_error:
+        block("agent %s %s" % (agent_id, parse_error))
+        return
+    task_id = report.get("task_id")
+    if not isinstance(task_id, str) or not task_id:
+        block("agent %s report has invalid task_id" % agent_id)
+        return
+    task = ledger["tasks"].get(task_id)
+    if not isinstance(task, dict):
+        block("task %s is not present in the ledger" % task_id)
+        return
+    if task.get("agent_id") != agent_id:
+        block("task %s is not assigned to agent %s" % (task_id, agent_id))
+        return
+    root = ledger_root(ledger)
+    if root is None:
+        block("ledger root must be an existing absolute directory")
+        return
+    error = report_error(task_id, task, report, root)
     if error:
         block(error)
 
@@ -222,16 +261,20 @@ def ledger_root(ledger):
     return path.resolve()
 
 
-def evidence_error(task_id, evidence_paths, root):
+def evidence_error(task_id, evidence_paths, root, require_paths=True):
     if not isinstance(evidence_paths, dict):
-        return "task %s is missing evidence_paths" % task_id
+        return "task %s has invalid evidence_paths" % task_id
+    allowed_types = {"files", "commands", "ui"}
+    unknown_types = sorted(set(evidence_paths) - allowed_types)
+    if unknown_types:
+        return "task %s has invalid evidence_paths: %s" % (task_id, ", ".join(unknown_types))
     paths = []
     for evidence_type in ("files", "commands", "ui"):
         entries = evidence_paths.get(evidence_type, [])
         if not isinstance(entries, list) or not all(isinstance(item, str) and item for item in entries):
             return "task %s has invalid %s evidence paths" % (task_id, evidence_type)
         paths.extend((evidence_type, item) for item in entries)
-    if not paths:
+    if require_paths and not paths:
         return "task %s is missing evidence paths" % task_id
     for evidence_type, relative_path in paths:
         candidate = Path(relative_path)
@@ -284,7 +327,13 @@ def handle_stop(ledger):
                 block("task %s has %s" % (task_id, error))
                 return
         accepted = task.get("accepted")
-        if not isinstance(accepted, dict) or not isinstance(accepted.get("by"), str) or not isinstance(accepted.get("at"), str):
+        if (
+            not isinstance(accepted, dict)
+            or not isinstance(accepted.get("by"), str)
+            or not accepted["by"]
+            or not isinstance(accepted.get("at"), str)
+            or not accepted["at"]
+        ):
             block("task %s is missing accepted metadata" % task_id)
             return
         error = evidence_error(task_id, task.get("evidence_paths"), root)
@@ -296,24 +345,30 @@ def handle_stop(ledger):
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in {"PreToolUse", "SubagentStop", "Stop"}:
         return 0
+    if sys.argv[1] == "PreToolUse":
+        payload = read_input()
+        if payload is not None and not is_marked_spawn(payload):
+            return 0
+        ledger, ledger_error = load_ledger(Path.cwd())
+        if ledger is None:
+            if ledger_error:
+                deny_pretool(ledger_error)
+            return 0
+        if payload is None:
+            deny_pretool("hook input must be valid JSON")
+            return 0
+        handle_pretooluse(ledger, payload)
+        return 0
     ledger, ledger_error = load_ledger(Path.cwd())
     if ledger is None:
         if ledger_error:
-            if sys.argv[1] == "PreToolUse":
-                deny_pretool(ledger_error)
-            else:
-                block(ledger_error)
+            block(ledger_error)
         return 0
     payload = read_input()
     if payload is None:
-        if sys.argv[1] == "PreToolUse":
-            deny_pretool("hook input must be valid JSON")
-        else:
-            block("hook input must be valid JSON")
+        block("hook input must be valid JSON")
         return 0
-    if sys.argv[1] == "PreToolUse":
-        handle_pretooluse(ledger, payload)
-    elif sys.argv[1] == "SubagentStop":
+    if sys.argv[1] == "SubagentStop":
         handle_subagentstop(ledger, payload)
     else:
         handle_stop(ledger)

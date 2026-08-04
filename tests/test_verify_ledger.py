@@ -27,6 +27,13 @@ def write_ledger(cwd, tasks):
     ledger_path.write_text(json.dumps({"root": str(cwd), "tasks": tasks}), encoding="utf-8")
 
 
+def write_evidence(cwd, *names):
+    evidence = cwd / "evidence"
+    evidence.mkdir(exist_ok=True)
+    for name in names:
+        (evidence / name).write_text("proof", encoding="utf-8")
+
+
 def active_task():
     return {
         "agent_id": "agent-1",
@@ -116,6 +123,23 @@ class VerifyLedgerHooksTest(unittest.TestCase):
         self.assert_no_output(unrelated)
         self.assert_no_output(allowed)
 
+    def test_pretooluse_ignores_malformed_ledger_for_unrelated_and_unmarked_calls(self):
+        ledger_path = self.cwd / ".codex" / "subagent-orchestration" / "ledger.json"
+        ledger_path.parent.mkdir(parents=True)
+        ledger_path.write_text("{not-json}", encoding="utf-8")
+        unrelated = run_hook(
+            self.cwd,
+            "PreToolUse",
+            {"tool_name": "read_file", "tool_input": {"path": "README.md"}},
+        )
+        unmarked = run_hook(
+            self.cwd,
+            "PreToolUse",
+            {"tool_name": "spawn_agent", "tool_input": {"prompt": "Do the task."}},
+        )
+        self.assert_no_output(unrelated)
+        self.assert_no_output(unmarked)
+
     def test_pretooluse_denies_missing_structured_skill_item(self):
         write_ledger(self.cwd, {"task-1": active_task()})
         result = run_hook(
@@ -138,6 +162,7 @@ class VerifyLedgerHooksTest(unittest.TestCase):
 
     def test_subagentstop_allows_unrelated_agent_and_valid_report(self):
         write_ledger(self.cwd, {"task-1": active_task()})
+        write_evidence(self.cwd, "result.txt")
         unrelated = run_hook(
             self.cwd,
             "SubagentStop",
@@ -150,6 +175,50 @@ class VerifyLedgerHooksTest(unittest.TestCase):
         )
         self.assert_no_output(unrelated)
         self.assert_no_output(valid)
+
+    def test_subagentstop_uses_report_task_id_for_reused_agent(self):
+        first_task = active_task()
+        first_task["skills_required"] = ["superpowers:writing-skills"]
+        second_task = active_task()
+        write_ledger(self.cwd, {"task-1": first_task, "task-2": second_task})
+        write_evidence(self.cwd, "result.txt")
+        result = run_hook(
+            self.cwd,
+            "SubagentStop",
+            {
+                "agent_id": "agent-1",
+                "last_assistant_message": report(task_id="task-2"),
+            },
+        )
+        self.assert_no_output(result)
+
+    def test_subagentstop_blocks_invalid_status_and_ready_evidence_failures(self):
+        write_ledger(self.cwd, {"task-1": active_task()})
+        cases = {
+            "invalid status": report(status="WAITING"),
+            "missing evidence paths": report(evidence_paths={}),
+            "path escape": report(evidence_paths={"files": ["../outside.txt"]}),
+        }
+        for name, message in cases.items():
+            with self.subTest(name=name):
+                result = run_hook(
+                    self.cwd,
+                    "SubagentStop",
+                    {"agent_id": "agent-1", "last_assistant_message": message},
+                )
+                self.assert_block(result, name)
+
+    def test_subagentstop_allows_terminal_nonready_report_without_evidence(self):
+        write_ledger(self.cwd, {"task-1": active_task()})
+        result = run_hook(
+            self.cwd,
+            "SubagentStop",
+            {
+                "agent_id": "agent-1",
+                "last_assistant_message": report(status="BLOCKED", evidence_paths={}),
+            },
+        )
+        self.assert_no_output(result)
 
     def test_subagentstop_blocks_malformed_json_and_missing_skill_proof(self):
         write_ledger(self.cwd, {"task-1": active_task()})
@@ -173,12 +242,16 @@ class VerifyLedgerHooksTest(unittest.TestCase):
         self.assert_block(missing_skill, "skills_loaded")
 
     def test_stop_allows_valid_accepted_ledger(self):
-        evidence = self.cwd / "evidence"
-        evidence.mkdir()
-        for name in ("result.txt", "command.log", "screen.png"):
-            (evidence / name).write_text("proof", encoding="utf-8")
+        write_evidence(self.cwd, "result.txt", "command.log", "screen.png")
         write_ledger(self.cwd, {"task-1": accepted_task()})
         self.assert_no_output(run_hook(self.cwd, "Stop", {}))
+
+    def test_stop_blocks_empty_accepted_metadata(self):
+        write_evidence(self.cwd, "result.txt", "command.log", "screen.png")
+        for metadata in ({"by": "", "at": "2026-08-04T00:00:00Z"}, {"by": "controller", "at": ""}):
+            with self.subTest(metadata=metadata):
+                write_ledger(self.cwd, {"task-1": accepted_task(accepted=metadata)})
+                self.assert_block(run_hook(self.cwd, "Stop", {}), "accepted metadata")
 
     def test_stop_blocks_path_escape_empty_evidence_and_missing_skill_proof(self):
         evidence = self.cwd / "evidence"
