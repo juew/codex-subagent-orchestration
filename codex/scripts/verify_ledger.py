@@ -2,6 +2,7 @@
 """Read-only Codex hook handler for the subagent orchestration ledger."""
 
 import json
+import stat
 import sys
 from pathlib import Path
 
@@ -11,6 +12,10 @@ REPORT_PREFIX = "ORCHESTRATION_REPORT:"
 LEDGER_ROOT_ERROR = (
     "ledger root must be an existing absolute directory resolving to the current hook cwd"
 )
+LEDGER_READ_ERROR = "ledger JSON is malformed or unreadable"
+HOOK_CWD_ERROR = "hook cwd could not be resolved"
+PATH_ERRORS = (OSError, ValueError, RuntimeError)
+TASK_ARRAY_FIELDS = ("dependencies", "skills_required", "tools_required")
 ALLOWED_REPORT_STATUSES = {
     "READY_FOR_ACCEPTANCE",
     "BLOCKED",
@@ -41,13 +46,20 @@ def deny_pretool(reason):
 
 def load_ledger(cwd):
     path = cwd / LEDGER_RELATIVE_PATH
-    if not path.is_file():
-        return None, None
     try:
+        path.lstat()
+    except FileNotFoundError:
+        return None, None
+    except PATH_ERRORS:
+        return None, LEDGER_READ_ERROR
+    try:
+        metadata = path.stat()
+        if not stat.S_ISREG(metadata.st_mode):
+            return None, LEDGER_READ_ERROR
         with path.open(encoding="utf-8") as handle:
             ledger = json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return None, "ledger JSON is malformed"
+    except (OSError, UnicodeError, ValueError, RuntimeError):
+        return None, LEDGER_READ_ERROR
     if not isinstance(ledger, dict) or not isinstance(ledger.get("tasks"), dict):
         return None, "ledger must contain a tasks object"
     return ledger, None
@@ -56,7 +68,7 @@ def load_ledger(cwd):
 def read_input():
     try:
         payload = json.load(sys.stdin)
-    except json.JSONDecodeError:
+    except (OSError, UnicodeError, ValueError, RuntimeError):
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -127,9 +139,21 @@ def string_set(value):
     return set(value)
 
 
+def task_shape_error(task):
+    if not isinstance(task, dict):
+        return "task must be an object"
+    for field in ("agent_id", "status"):
+        value = task.get(field)
+        if not isinstance(value, str) or not value:
+            return "missing or invalid %s" % field
+    for field in TASK_ARRAY_FIELDS:
+        if string_set(task.get(field)) is None:
+            return "missing or invalid %s" % field
+    return None
+
+
 def required_values(task, field):
-    value = task.get(field, [])
-    return string_set(value)
+    return string_set(task.get(field))
 
 
 def coverage_error(task, required_field, supplied_field, label):
@@ -157,10 +181,11 @@ def handle_pretooluse(ledger, payload):
     if not isinstance(task, dict):
         deny_pretool("ORCHESTRATION_TASK_ID %s is not present in the ledger" % identifier)
         return
-    required = required_values(task, "skills_required")
-    if required is None:
-        deny_pretool("task %s has invalid skills_required" % identifier)
+    shape_error = task_shape_error(task)
+    if shape_error:
+        deny_pretool("task %s is invalid: %s" % (identifier, shape_error))
         return
+    required = required_values(task, "skills_required")
     missing = sorted(required - supplied_skills(call_input))
     if missing:
         deny_pretool(
@@ -197,21 +222,25 @@ def report_error(task_id, task, report, root):
     status = report.get("status")
     if status not in ALLOWED_REPORT_STATUSES:
         return "task %s report has invalid status" % task_id
-    for required_field, label in (("skills_loaded", "skill proof"), ("tools_proven", "tool proof")):
+    proof_sets = {}
+    for required_field in ("skills_loaded", "tools_proven"):
         supplied = string_set(report.get(required_field))
         if supplied is None:
-            return "task %s report is missing %s" % (task_id, required_field)
-        requirements = required_values(task, "skills_required" if required_field == "skills_loaded" else "tools_required")
-        if requirements is None:
-            return "task %s has invalid ledger requirements" % task_id
-        missing = sorted(requirements - supplied)
-        if missing:
-            return "task %s report is missing %s %s: %s" % (
-                task_id,
-                required_field,
-                label,
-                ", ".join(missing),
-            )
+            return "task %s report has invalid %s" % (task_id, required_field)
+        proof_sets[required_field] = supplied
+    if status == "READY_FOR_ACCEPTANCE":
+        for required_field, supplied_field, label in (
+            ("skills_required", "skills_loaded", "skill proof"),
+            ("tools_required", "tools_proven", "tool proof"),
+        ):
+            missing = sorted(required_values(task, required_field) - proof_sets[supplied_field])
+            if missing:
+                return "task %s report is missing %s %s: %s" % (
+                    task_id,
+                    supplied_field,
+                    label,
+                    ", ".join(missing),
+                )
     evidence_paths = report.get("evidence_paths")
     return evidence_error(
         task_id,
@@ -221,16 +250,23 @@ def report_error(task_id, task, report, root):
     )
 
 
-def handle_subagentstop(ledger, payload):
+def handle_subagentstop(ledger, payload, cwd):
     agent_id = payload.get("agent_id")
     if not isinstance(agent_id, str):
         return
-    if not any(
+    owns_task = any(
         isinstance(task, dict) and task.get("agent_id") == agent_id
         for task in ledger["tasks"].values()
-    ):
+    )
+    message = final_message(payload)
+    claims_report = (
+        isinstance(message, str)
+        and bool(message.splitlines())
+        and message.splitlines()[-1].startswith(REPORT_PREFIX)
+    )
+    if not owns_task and not claims_report:
         return
-    report, parse_error = parse_report(final_message(payload))
+    report, parse_error = parse_report(message)
     if parse_error:
         block("agent %s %s" % (agent_id, parse_error))
         return
@@ -242,10 +278,14 @@ def handle_subagentstop(ledger, payload):
     if not isinstance(task, dict):
         block("task %s is not present in the ledger" % task_id)
         return
+    shape_error = task_shape_error(task)
+    if shape_error:
+        block("task %s is invalid: %s" % (task_id, shape_error))
+        return
     if task.get("agent_id") != agent_id:
         block("task %s is not assigned to agent %s" % (task_id, agent_id))
         return
-    root = ledger_root(ledger)
+    root = ledger_root(ledger, cwd)
     if root is None:
         block(LEDGER_ROOT_ERROR)
         return
@@ -254,15 +294,19 @@ def handle_subagentstop(ledger, payload):
         block(error)
 
 
-def ledger_root(ledger):
+def ledger_root(ledger, cwd):
     root = ledger.get("root")
     if not isinstance(root, str) or not root:
         return None
-    path = Path(root)
-    if not path.is_absolute() or not path.is_dir():
+    try:
+        path = Path(root)
+        if not path.is_absolute() or not path.is_dir():
+            return None
+        resolved = path.resolve()
+        current = cwd.resolve()
+    except PATH_ERRORS:
         return None
-    resolved = path.resolve()
-    if resolved != Path.cwd().resolve():
+    if resolved != current:
         return None
     return resolved
 
@@ -283,14 +327,20 @@ def evidence_error(task_id, evidence_paths, root, require_paths=True):
     if require_paths and not paths:
         return "task %s is missing evidence paths" % task_id
     for evidence_type, relative_path in paths:
-        candidate = Path(relative_path)
-        if candidate.is_absolute() or ".." in candidate.parts:
-            return "task %s has path escape for %s evidence: %s" % (
+        try:
+            candidate = Path(relative_path)
+            if candidate.is_absolute() or ".." in candidate.parts:
+                return "task %s has path escape for %s evidence: %s" % (
+                    task_id,
+                    evidence_type,
+                    relative_path,
+                )
+            resolved = (root / candidate).resolve()
+        except PATH_ERRORS:
+            return "task %s evidence path could not be validated: %r" % (
                 task_id,
-                evidence_type,
                 relative_path,
             )
-        resolved = (root / candidate).resolve()
         try:
             resolved.relative_to(root)
         except ValueError:
@@ -299,26 +349,33 @@ def evidence_error(task_id, evidence_paths, root, require_paths=True):
                 evidence_type,
                 relative_path,
             )
-        if not resolved.is_file():
-            return "task %s has missing evidence: %s" % (task_id, relative_path)
-        if resolved.stat().st_size == 0:
-            return "task %s has empty evidence: %s" % (task_id, relative_path)
+        try:
+            if not resolved.is_file():
+                return "task %s has missing evidence: %s" % (task_id, relative_path)
+            if resolved.stat().st_size == 0:
+                return "task %s has empty evidence: %s" % (task_id, relative_path)
+        except PATH_ERRORS:
+            return "task %s evidence path could not be validated: %r" % (
+                task_id,
+                relative_path,
+            )
     return None
 
 
-def handle_stop(ledger):
-    root = ledger_root(ledger)
+def handle_stop(ledger, cwd):
+    root = ledger_root(ledger, cwd)
     if root is None:
         block(LEDGER_ROOT_ERROR)
         return
     tasks = ledger["tasks"]
     for task_id, task in tasks.items():
-        if not isinstance(task, dict) or task.get("status") != "accepted":
-            continue
-        dependencies = task.get("dependencies", [])
-        if not isinstance(dependencies, list) or not all(isinstance(item, str) for item in dependencies):
-            block("task %s has invalid dependencies" % task_id)
+        shape_error = task_shape_error(task)
+        if shape_error:
+            block("task %s is invalid: %s" % (task_id, shape_error))
             return
+        if task.get("status") != "accepted":
+            continue
+        dependencies = task["dependencies"]
         for dependency in dependencies:
             dependency_task = tasks.get(dependency)
             if not isinstance(dependency_task, dict) or dependency_task.get("status") != "accepted":
@@ -336,9 +393,9 @@ def handle_stop(ledger):
         if (
             not isinstance(accepted, dict)
             or not isinstance(accepted.get("by"), str)
-            or not accepted["by"]
+            or not accepted["by"].strip()
             or not isinstance(accepted.get("at"), str)
-            or not accepted["at"]
+            or not accepted["at"].strip()
         ):
             block("task %s is missing accepted metadata" % task_id)
             return
@@ -355,7 +412,12 @@ def main():
         payload = read_input()
         if payload is not None and not is_marked_spawn(payload):
             return 0
-        ledger, ledger_error = load_ledger(Path.cwd())
+        try:
+            cwd = Path.cwd()
+        except PATH_ERRORS:
+            deny_pretool(HOOK_CWD_ERROR)
+            return 0
+        ledger, ledger_error = load_ledger(cwd)
         if ledger is None:
             if ledger_error:
                 deny_pretool(ledger_error)
@@ -365,7 +427,12 @@ def main():
             return 0
         handle_pretooluse(ledger, payload)
         return 0
-    ledger, ledger_error = load_ledger(Path.cwd())
+    try:
+        cwd = Path.cwd()
+    except PATH_ERRORS:
+        block(HOOK_CWD_ERROR)
+        return 0
+    ledger, ledger_error = load_ledger(cwd)
     if ledger is None:
         if ledger_error:
             block(ledger_error)
@@ -375,9 +442,9 @@ def main():
         block("hook input must be valid JSON")
         return 0
     if sys.argv[1] == "SubagentStop":
-        handle_subagentstop(ledger, payload)
+        handle_subagentstop(ledger, payload, cwd)
     else:
-        handle_stop(ledger)
+        handle_stop(ledger, cwd)
     return 0
 
 

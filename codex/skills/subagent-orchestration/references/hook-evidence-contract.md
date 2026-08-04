@@ -38,6 +38,9 @@ writes all of these fields:
 }
 ```
 
+The five task fields above are required by the ledger schema. The three array fields may be empty
+when explicitly present; omitting them is invalid.
+
 `files`, `commands`, and `ui` may be empty when that evidence class does not apply, but at least
 one evidence path is required. Every listed path must resolve below `root`, exist as a regular
 file, and contain bytes. `Stop` blocks until all accepted tasks have accepted dependencies,
@@ -75,8 +78,11 @@ ORCHESTRATION_REPORT: {"task_id":"task-1","status":"READY_FOR_ACCEPTANCE","skill
 ```
 
 `task_id` selects the ledger task and that task's `agent_id` must match the hook agent. `status`
-must be `READY_FOR_ACCEPTANCE`, `BLOCKED`, `FAIL`, or `NEEDS_CLARIFICATION`; `skills_loaded` and
-`tools_proven` must cover the ledger requirements. `evidence_paths` must be a valid path-group
-object. `READY_FOR_ACCEPTANCE` requires at least one relative, regular, non-empty file below the
-ledger root; the other terminal statuses may provide no paths. Missing or malformed reports block
-using `{"decision":"block","reason":"..."}`.
+must be `READY_FOR_ACCEPTANCE`, `BLOCKED`, `FAIL`, or `NEEDS_CLARIFICATION`. Every status requires
+structurally valid `skills_loaded` and `tools_proven` arrays. `READY_FOR_ACCEPTANCE` must cover all
+ledger skill and tool requirements; non-ready statuses report actual partial or empty proof. If a
+required tool is unavailable, the human-readable blocker may say
+`BLOCKED_REQUIRED_TOOL_UNAVAILABLE`, while the JSON status remains `BLOCKED`. `evidence_paths` must
+be a valid path-group object. `READY_FOR_ACCEPTANCE` requires at least one relative, regular,
+non-empty file below the ledger root; the other terminal statuses may provide no paths. Missing or
+malformed reports block using `{"decision":"block","reason":"..."}`.

@@ -55,6 +55,7 @@
 需要确定性 enforcement 时，应通过已配置的 Codex marketplace 安装整个 plugin。安装后，在 Codex 中打开
 `/hooks`，进入该 plugin 的 hook 配置，审阅 `hooks/hooks.json` 与 `scripts/verify_ledger.py`，并在此处信任/启用
 这些 hook；只有启用后确定性 hook 才会运行。本仓库不修改任何用户全局 marketplace 或配置。
+完整 plugin 的 hook 需要 Python 3；处理脚本仅使用 Python 3 标准库，无需第三方 Python 依赖。
 
 只需要编排说明时，可以复制 skill：
 
@@ -120,6 +121,8 @@ through a configured Codex marketplace. After installation, open `/hooks` in Cod
 plugin's hook configuration, review `hooks/hooks.json` and `scripts/verify_ledger.py`, then trust
 and enable the hooks there; deterministic hooks run only after that enablement. This repository
 does not modify any user-global marketplace or config.
+The complete plugin hooks require Python 3 and use only the Python 3 standard library; no
+third-party Python dependencies are required.
 
 For instruction-only use, copy the skill:
 

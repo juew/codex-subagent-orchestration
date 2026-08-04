@@ -52,7 +52,7 @@ Verification command or check:
 ## Stop Conditions
 
 Return `READY_FOR_ACCEPTANCE` when:
-Return `BLOCKED` when:
+Return `BLOCKED` when: For an unavailable required tool, describe the blocker as `BLOCKED_REQUIRED_TOOL_UNAVAILABLE`, but use `BLOCKED` in the final JSON status.
 Return `FAIL` when:
 Return `NEEDS_CLARIFICATION` when:
 
@@ -71,4 +71,6 @@ Recommended next step:
 
 Final line (required):
 `ORCHESTRATION_REPORT: {"task_id":"<Task ID>","status":"READY_FOR_ACCEPTANCE","skills_loaded":["<skill>"],"tools_proven":["<tool>"],"evidence_paths":{"commands":["evidence/tests.log"]}}`
+
+All final statuses require array-shaped `skills_loaded` and `tools_proven`. Use actual partial or empty proof for `BLOCKED`, `FAIL`, and `NEEDS_CLARIFICATION`; only `READY_FOR_ACCEPTANCE` must cover every ledger requirement.
 ```
