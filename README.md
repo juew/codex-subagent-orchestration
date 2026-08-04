@@ -52,8 +52,9 @@
 ## 安装
 
 仅复制 `skills/subagent-orchestration` 到 skills 目录只会提供说明文本，不会启用 hook 的确定性验收。
-需要确定性 enforcement 时，应通过已配置的 Codex marketplace 安装整个 plugin，并在安装前审阅和信任
-`hooks/hooks.json` 与 `scripts/verify_ledger.py`。本仓库不修改任何用户全局 marketplace 或配置。
+需要确定性 enforcement 时，应通过已配置的 Codex marketplace 安装整个 plugin。安装后，在 Codex 中打开
+`/hooks`，进入该 plugin 的 hook 配置，审阅 `hooks/hooks.json` 与 `scripts/verify_ledger.py`，并在此处信任/启用
+这些 hook；只有启用后确定性 hook 才会运行。本仓库不修改任何用户全局 marketplace 或配置。
 
 只需要编排说明时，可以复制 skill：
 
@@ -115,8 +116,10 @@ then use subagent-orchestration as the controller workflow.
 
 Copying only `skills/subagent-orchestration` into a skills directory provides the instructions but
 does not activate deterministic hook enforcement. For enforcement, install the entire plugin
-through a configured Codex marketplace, after reviewing and trusting `hooks/hooks.json` and
-`scripts/verify_ledger.py`. This repository does not modify any user-global marketplace or config.
+through a configured Codex marketplace. After installation, open `/hooks` in Codex, open this
+plugin's hook configuration, review `hooks/hooks.json` and `scripts/verify_ledger.py`, then trust
+and enable the hooks there; deterministic hooks run only after that enablement. This repository
+does not modify any user-global marketplace or config.
 
 For instruction-only use, copy the skill:
 
