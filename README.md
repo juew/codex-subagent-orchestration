@@ -54,7 +54,7 @@ Do the final artifacts still agree with each other?
 - **Templates** — a delegation contract and a handoff document, both ready to paste.
 - **Parallelism and consistency rules** — when tasks may run concurrently, and a final pass that checks counts, IDs, statuses, and withdrawn decisions across every artifact.
 
-Both packages are self-contained, with no external dependencies, network calls, or telemetry. The Claude Code package is instruction-led and includes a reference for an optional independent agent hook; the Codex package also includes deterministic local command hooks, their verifier, schema, and tests.
+Both packages are self-contained, make no network calls, and collect no telemetry. The Claude Code package is instruction-led and includes a reference for an optional independent agent hook; the Codex package also includes deterministic local command hooks, their verifier, schema, and tests. Deterministic Codex hooks require a Python 3 runtime but no third-party Python packages.
 
 ## Install
 
@@ -78,7 +78,7 @@ git clone https://github.com/juew/subagent-orchestration.git
 cp -R subagent-orchestration/codex/skills/subagent-orchestration ~/.codex/skills/
 ```
 
-That copy is instruction-only. For deterministic enforcement, install the complete `codex/` plugin through a configured Codex marketplace. Then open Codex `/hooks`, review `hooks/hooks.json` and `scripts/verify_ledger.py` for this plugin, and trust/enable the hooks there. Restart or refresh Codex to use the skill; deterministic hooks run only after the complete plugin is installed and enabled.
+That copy is instruction-only. Deterministic Codex hooks require a Python 3 runtime but no third-party Python packages. For deterministic enforcement, install the complete `codex/` plugin through a configured Codex marketplace. Then open Codex `/hooks`, review `hooks/hooks.json` and `scripts/verify_ledger.py` for this plugin, and trust/enable the hooks there. Restart or refresh Codex to use the skill; deterministic hooks run only after the complete plugin is installed and enabled.
 
 ## How It Works
 

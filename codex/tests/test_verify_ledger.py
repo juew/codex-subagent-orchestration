@@ -21,10 +21,13 @@ def run_hook(cwd, event, payload):
     )
 
 
-def write_ledger(cwd, tasks):
+def write_ledger(cwd, tasks, root=None):
     ledger_path = cwd / ".codex" / "subagent-orchestration" / "ledger.json"
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
-    ledger_path.write_text(json.dumps({"root": str(cwd), "tasks": tasks}), encoding="utf-8")
+    ledger_path.write_text(
+        json.dumps({"root": str(cwd if root is None else root), "tasks": tasks}),
+        encoding="utf-8",
+    )
 
 
 def write_evidence(cwd, *names):
@@ -220,6 +223,21 @@ class VerifyLedgerHooksTest(unittest.TestCase):
         )
         self.assert_no_output(result)
 
+    def test_subagentstop_blocks_ledger_root_outside_hook_cwd(self):
+        external_evidence = str(SCRIPT.resolve().relative_to("/"))
+        write_ledger(self.cwd, {"task-1": active_task()}, root="/")
+        result = run_hook(
+            self.cwd,
+            "SubagentStop",
+            {
+                "agent_id": "agent-1",
+                "last_assistant_message": report(
+                    evidence_paths={"files": [external_evidence]}
+                ),
+            },
+        )
+        self.assert_block(result, "current hook cwd")
+
     def test_subagentstop_blocks_malformed_json_and_missing_skill_proof(self):
         write_ledger(self.cwd, {"task-1": active_task()})
         malformed = run_hook(
@@ -245,6 +263,19 @@ class VerifyLedgerHooksTest(unittest.TestCase):
         write_evidence(self.cwd, "result.txt", "command.log", "screen.png")
         write_ledger(self.cwd, {"task-1": accepted_task()})
         self.assert_no_output(run_hook(self.cwd, "Stop", {}))
+
+    def test_stop_allows_ledger_root_alias_resolving_to_hook_cwd(self):
+        write_evidence(self.cwd, "result.txt", "command.log", "screen.png")
+        root_alias = self.cwd / "workspace-alias"
+        root_alias.symlink_to(self.cwd, target_is_directory=True)
+        write_ledger(self.cwd, {"task-1": accepted_task()}, root=root_alias)
+        self.assert_no_output(run_hook(self.cwd, "Stop", {}))
+
+    def test_stop_blocks_ledger_root_outside_hook_cwd(self):
+        external_evidence = str(SCRIPT.resolve().relative_to("/"))
+        task = accepted_task(evidence_paths={"files": [external_evidence]})
+        write_ledger(self.cwd, {"task-1": task}, root="/")
+        self.assert_block(run_hook(self.cwd, "Stop", {}), "current hook cwd")
 
     def test_stop_blocks_empty_accepted_metadata(self):
         write_evidence(self.cwd, "result.txt", "command.log", "screen.png")

@@ -54,7 +54,7 @@
 - **模板** —— 委派契约和交接文档各一份，可直接套用。
 - **并行与一致性规则** —— 什么时候允许并行，以及收尾前对所有产物做计数、ID、状态、已撤销结论的一致性核对。
 
-两个发布包都自包含：无外部依赖、无网络请求、无遥测。Claude Code 包以说明为主，附带可选的独立 agent hook 参考；Codex 包还包含确定性的本地命令 hook、校验脚本、schema 和测试。
+两个发布包都自包含：无网络请求、无遥测。Claude Code 包以说明为主，附带可选的独立 agent hook 参考；Codex 包还包含确定性的本地命令 hook、校验脚本、schema 和测试。确定性 Codex hook 需要 Python 3 运行时，但不依赖第三方 Python 包。
 
 ## 安装
 
@@ -78,7 +78,7 @@ git clone https://github.com/juew/subagent-orchestration.git
 cp -R subagent-orchestration/codex/skills/subagent-orchestration ~/.codex/skills/
 ```
 
-这同样是「仅说明」复制。若要启用确定性约束，请通过已配置的 Codex marketplace 安装完整 `codex/` plugin；安装后在 Codex 中打开 `/hooks`，审阅该 plugin 的 `hooks/hooks.json` 与 `scripts/verify_ledger.py`，并在此处信任/启用 hook。重启或刷新后可使用 skill；只有完整 plugin 已安装且 hook 已启用时，确定性 hook 才会运行。
+这同样是「仅说明」复制。确定性 Codex hook 需要 Python 3 运行时，但不依赖第三方 Python 包。若要启用确定性约束，请通过已配置的 Codex marketplace 安装完整 `codex/` plugin；安装后在 Codex 中打开 `/hooks`，审阅该 plugin 的 `hooks/hooks.json` 与 `scripts/verify_ledger.py`，并在此处信任/启用 hook。重启或刷新后可使用 skill；只有完整 plugin 已安装且 hook 已启用时，确定性 hook 才会运行。
 
 ## 工作方式
 

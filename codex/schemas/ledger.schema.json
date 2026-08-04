@@ -6,7 +6,7 @@
   "properties": {
     "root": {
       "type": "string",
-      "description": "Absolute workspace root containing all evidence paths."
+      "description": "Absolute current hook workspace (<cwd>) containing all evidence paths; its resolved path must equal the hook process current working directory."
     },
     "tasks": {
       "type": "object",

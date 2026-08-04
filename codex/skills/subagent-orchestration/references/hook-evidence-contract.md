@@ -1,8 +1,9 @@
 # Hook And Evidence Contract
 
-Codex discovers this plugin's command hooks from `hooks/hooks.json`. The handlers expand
-`${PLUGIN_ROOT}` themselves and read only `<cwd>/.codex/subagent-orchestration/ledger.json`.
-They never create, update, or delete a ledger or evidence artifact. When that ledger is absent,
+Codex discovers this plugin's command hooks from `hooks/hooks.json`. The Codex/plugin host expands
+`${PLUGIN_ROOT}` in each hook command before starting Python. The handler reads only
+`<cwd>/.codex/subagent-orchestration/ledger.json`; it does not expand `${PLUGIN_ROOT}` itself. It
+never creates, updates, or deletes a ledger or evidence artifact. When that ledger is absent,
 `PreToolUse`, `SubagentStop`, and `Stop` succeed silently with no output.
 
 ## Hook Trust
@@ -14,8 +15,9 @@ text. After installing the complete plugin, open Codex `/hooks`, open this plugi
 configuration, review it, and trust and enable its handlers there. Deterministic enforcement does
 not run until that post-install enablement; copying the skill alone supplies instructions only.
 
-Use [the JSON schema](../../../schemas/ledger.schema.json) as the ledger shape. The ledger root
-must be an existing absolute workspace directory. Evidence paths are always relative to that root.
+Use [the JSON schema](../../../schemas/ledger.schema.json) as the ledger shape. The ledger `root`
+must be the current hook workspace (`<cwd>`): an existing absolute directory whose resolved path
+equals the hook process current working directory. Evidence paths are always relative to that root.
 
 ## Controller Ledger
 
