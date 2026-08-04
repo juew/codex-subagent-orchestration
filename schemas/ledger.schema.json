@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Subagent Orchestration Ledger",
+  "type": "object",
+  "required": ["root", "tasks"],
+  "properties": {
+    "root": {
+      "type": "string",
+      "description": "Absolute workspace root containing all evidence paths."
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/task" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "pathGroups": {
+      "type": "object",
+      "properties": {
+        "files": { "$ref": "#/$defs/pathList" },
+        "commands": { "$ref": "#/$defs/pathList" },
+        "ui": { "$ref": "#/$defs/pathList" }
+      },
+      "additionalProperties": false
+    },
+    "pathList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "task": {
+      "type": "object",
+      "required": ["agent_id", "status", "dependencies", "skills_required", "tools_required"],
+      "properties": {
+        "agent_id": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "dependencies": { "$ref": "#/$defs/pathList" },
+        "skills_required": { "$ref": "#/$defs/pathList" },
+        "tools_required": { "$ref": "#/$defs/pathList" },
+        "skills_loaded": { "$ref": "#/$defs/pathList" },
+        "tools_proven": { "$ref": "#/$defs/pathList" },
+        "evidence_paths": { "$ref": "#/$defs/pathGroups" },
+        "accepted": {
+          "type": "object",
+          "required": ["by", "at"],
+          "properties": {
+            "by": { "type": "string", "minLength": 1 },
+            "at": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -24,6 +24,10 @@
 - 进入实现阶段后，默认也是 delegated-implementation：子 Agent 写业务代码，主控只负责任务拆分、下发、证据复核、冲突裁决、验收比对和最终报告。只有用户明确要求主控亲自改代码，才进入 controller-implementation。
 - 上下文变长、任务暂停、规则变化、结论撤销或 agent 换班时必须写交接文档。
 - 如果用户要求某个工具，工具使用证明必须成为验收门槛。
+- 对需要强制验收的任务，在 `<cwd>/.codex/subagent-orchestration/ledger.json` 建立 ledger；子 agent
+  归属使用 `agent_id`，分派文本含 `ORCHESTRATION_TASK_ID: <id>`，且每项必需 skill 以
+  `{ "type": "skill", "name": "..." }` 结构化传入。最终一行必须返回机器可验证的
+  `ORCHESTRATION_REPORT: { ... }` JSON。完整格式见 `references/hook-evidence-contract.md`。
 
 与 `using-superpowers` 配合时，先让 `using-superpowers` 判断当前任务应该使用哪些 skill；只有当任务被判断为长流程、多 agent、需要 handoff 或需要独立验收时，才启用 `subagent-orchestration`。
 
@@ -72,6 +76,11 @@ Core principles:
 - After implementation is authorized, default to delegated-implementation: subagents edit business code, while the controller delegates, reviews evidence, resolves conflicts, verifies, and reports. Use controller-implementation only when the user explicitly asks the controller to edit code itself.
 - Write handoffs when context gets long, work pauses, rules change, decisions are withdrawn, or agents are replaced.
 - Required tool usage must be proven before acceptance.
+- For enforced work, create the ledger at `<cwd>/.codex/subagent-orchestration/ledger.json`; assign
+  ownership with `agent_id`, include `ORCHESTRATION_TASK_ID: <id>` in the delegation text, and pass
+  every required skill as a `{ "type": "skill", "name": "..." }` structured item. The final line
+  must be machine-verifiable `ORCHESTRATION_REPORT: { ... }` JSON. See
+  `references/hook-evidence-contract.md` for the exact contract.
 
 When using this with `using-superpowers`, let `using-superpowers` decide which skills apply first. Invoke `subagent-orchestration` only when the task is classified as long-running, multi-agent, handoff-sensitive, or requiring independent acceptance.
 

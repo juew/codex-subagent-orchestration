@@ -6,9 +6,15 @@
 
 `subagent-orchestration` 是一个通用 Codex skill，用于主控 + 子 agent 工作模式。它适合长流程、多 agent、需要验收门槛、工具使用证明、上下文交接和最终一致性检查的任务。
 
-这个发布包只包含一个独立 skill：
+这个发布包提供一个独立 skill 和可选的、无需安装到用户全局目录的本地 hook：
 
 - `subagent-orchestration`
+
+版本 `0.2.0` 的 hook 由 Codex 自动从 `hooks/hooks.json` 发现。它们只读取当前工作目录的
+`<cwd>/.codex/subagent-orchestration/ledger.json`：没有该文件时三个 hook 都静默放行；有该文件时，
+会检查带 `ORCHESTRATION_TASK_ID` 的 `spawn_agent` 结构化 skill 项、子 agent 的最终 JSON 报告，以及
+已验收任务的依赖、工具、skill 和相对且非空的证据文件。ledger 和证据格式见
+`skills/subagent-orchestration/references/hook-evidence-contract.md`。
 
 ## 适用场景
 
@@ -60,6 +66,13 @@ cp -R skills/subagent-orchestration ~/.codex/skills/
 This release package contains one independent skill:
 
 - `subagent-orchestration`
+
+Version `0.2.0` also ships local command hooks, automatically discovered by Codex from
+`hooks/hooks.json`. They read only `<cwd>/.codex/subagent-orchestration/ledger.json`: all three
+hooks silently allow when it is absent; when present, they enforce structured skill items for
+marked `spawn_agent` calls, final subagent JSON proof, and accepted-task dependencies, tool/skill
+coverage, and relative non-empty evidence files. See
+`skills/subagent-orchestration/references/hook-evidence-contract.md` for the executable contract.
 
 ## Use Cases
 
