@@ -54,7 +54,7 @@
 - **模板** —— 委派契约和交接文档各一份，可直接套用。
 - **并行与一致性规则** —— 什么时候允许并行，以及收尾前对所有产物做计数、ID、状态、已撤销结论的一致性核对。
 
-全部是纯 Markdown。无脚本、无依赖、无网络请求、无遥测。
+两个发布包都自包含：无外部依赖、无网络请求、无遥测。Claude Code 包以说明为主，附带可选的独立 agent hook 参考；Codex 包还包含确定性的本地命令 hook、校验脚本、schema 和测试。
 
 ## 安装
 
@@ -69,6 +69,8 @@ cp -R subagent-orchestration/claude/skills/subagent-orchestration ~/.claude/skil
 
 重启 Claude Code 后，用 `/subagent-orchestration` 调用，或由 Claude 在任务匹配时自动加载。`claude/` 目录本身也是一个合法的 plugin root，可用于 marketplace 分发。
 
+只复制 skill 属于「仅说明」安装。若要独立验收，可将 `claude/skills/subagent-orchestration/references/evidence-check.md` 作为 `agent` hook 配置到项目 `.claude/settings.json` 的 `Stop` 或 `SubagentStop`；此时由宿主 hook 触发检查，而不是由主控自己决定是否检查。
+
 ### Codex
 
 ```bash
@@ -76,7 +78,7 @@ git clone https://github.com/juew/subagent-orchestration.git
 cp -R subagent-orchestration/codex/skills/subagent-orchestration ~/.codex/skills/
 ```
 
-重启或刷新 Codex 后即可使用。
+这同样是「仅说明」复制。若要启用确定性约束，请通过已配置的 Codex marketplace 安装完整 `codex/` plugin；安装后在 Codex 中打开 `/hooks`，审阅该 plugin 的 `hooks/hooks.json` 与 `scripts/verify_ledger.py`，并在此处信任/启用 hook。重启或刷新后可使用 skill；只有完整 plugin 已安装且 hook 已启用时，确定性 hook 才会运行。
 
 ## 工作方式
 
@@ -134,16 +136,20 @@ claude/                       Claude Code 版本
   .claude-plugin/plugin.json
   skills/subagent-orchestration/
     SKILL.md
-    references/               委派契约、交接模板
+    references/               委派契约、交接模板、总账 schema、evidence-check hook 参考
 codex/                        Codex 版本
   .codex-plugin/plugin.json
+  hooks/hooks.json
+  scripts/verify_ledger.py
+  schemas/ledger.schema.json
   skills/subagent-orchestration/
     SKILL.md
     agents/openai.yaml
     references/
+  tests/test_verify_ledger.py
 ```
 
-两个版本的编排语义完全一致——角色契约、执行模式、验收门槛、复用门槛、交接规则都相同，差异只在平台原语：Claude Code 通过 `Agent` 工具分派、通过 `SendMessage` 复用、用 `isolation: "worktree"` 隔离写边界；Codex 使用 `spawn_agent`、`send_input`、`wait_agent`、`close_agent`。两棵树各自自包含，因此 Claude Code 会话不会读到 Codex 的工具名，反之亦然。
+两个版本的编排语义完全一致——角色契约、执行模式、验收门槛、复用门槛、结构化总账、交接规则都相同，差异在平台原语和验收方式：Claude Code 通过 `Agent` 工具分派、通过 `SendMessage` 复用、用 `isolation: "worktree"` 隔离写边界，并可把 evidence-check 参考配置成 agent hook；Codex 使用 `spawn_agent`、`send_input`、`wait_agent`、`close_agent`，并使用读取结构化总账与证据文件的确定性命令 hook。两棵树各自自包含，因此 Claude Code 会话不会读到 Codex 的工具名，反之亦然。
 
 ## 适合关注本项目的人
 
@@ -158,7 +164,6 @@ codex/                        Codex 版本
 ## 路线图
 
 - 一个完整的实战示例：真实回归过程产出的覆盖矩阵、证据路径和缺陷台账。
-- 一种紧凑的总账格式，能在上下文压缩后无需重读即可恢复。
 - 嵌套子 agent（子 agent 再分派）的使用指引。
 - 针对验收门槛行为的可选评测用例。
 
@@ -169,6 +174,9 @@ codex/                        Codex 版本
 - [Codex 指南](codex/README.md)
 - [委派契约模板](claude/skills/subagent-orchestration/references/delegation-contract.md)
 - [交接文档模板](claude/skills/subagent-orchestration/references/handoff-template.md)
+- [结构化总账 schema](claude/skills/subagent-orchestration/references/ledger-schema.md)
+- [Claude evidence-check hook 参考](claude/skills/subagent-orchestration/references/evidence-check.md)
+- [Codex hook 与证据契约](codex/skills/subagent-orchestration/references/hook-evidence-contract.md)
 
 ## 许可证
 

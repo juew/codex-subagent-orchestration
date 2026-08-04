@@ -18,6 +18,7 @@ In Claude Code, orchestration uses these primitives:
 - **Wait / monitor**: rely on completion notifications for background subagents; use `TaskList` / `TaskOutput` to inspect background task state. Never fabricate or predict a pending agent's result.
 - **Write isolation**: `isolation: "worktree"` gives a subagent its own git worktree when write boundaries must not overlap.
 - **Lifecycle**: Claude Code subagents terminate on their own after returning a final report; there is no explicit close/delete call. "Cleanup" here means updating the ledger to a terminal status and not sending further messages to superseded or polluted agents.
+- **Independent verification**: mount `references/evidence-check.md` as an `agent`-type hook on `Stop` or `SubagentStop` in `.claude/settings.json`, so the harness triggers it instead of the controller choosing to. The controller is the party being verified and must not also be the party that decides whether verification runs. Without a hook this degrades to a closure step the controller performs itself; verification is then self-reported and materially weaker.
 
 A subagent's final report is not shown to the user — the main controller must relay what matters.
 
@@ -67,7 +68,7 @@ If the user says 严格使用 subagent-orchestration, 子 Agent 完成, 主控�
 ## Main Workflow
 
 1. Classify the work: review-only, plan-handoff, delegated-testing, delegated-implementation, controller-implementation, artifact editing, investigation, or closure.
-2. Create a state ledger for nontrivial work (a scratchpad or project file). Track owner, task, status, inputs, outputs, blockers, artifact paths, acceptance status, and next step.
+2. Create a state ledger for nontrivial work (a scratchpad or project file). Track owner, task, status, inputs, outputs, blockers, artifact paths, acceptance status, and next step. Use the schema in `references/ledger-schema.md`. A free-form ledger cannot be verified by a delegated or automated check, and the tool-policy, evidence-tier, and dependency gates below have no checkable meaning without its fields.
 3. Define task slices with clear boundaries. Only parallelize tasks whose write sets, UI surfaces, and dependencies do not conflict.
 4. Run the reuse gate before spawning any subagent. Reuse an existing suitable subagent with `SendMessage`; spawn a new one with the `Agent` tool only with a recorded reason.
 5. Delegate using a written contract. Include goal, scope, reuse decision, prior context or handoff, allowed tools, forbidden actions, expected evidence, output format, acceptance criteria, and stop conditions.
@@ -206,3 +207,5 @@ Do not close a long-running task until:
 - Shared artifacts are consistent.
 - Required verification commands or visual checks have run.
 - The final answer states what changed, what was verified, and any remaining risk.
+
+Before closing, run the evidence check in `references/evidence-check.md` against the ledger. Delegate it to an independent subagent; the main controller must not substitute its own review for this step. The check is idempotent — tasks with a recorded `check.result` are frozen and not re-verified — so its cost stays flat as the ledger grows. See Claude Code Tool Mapping for the hook-based form, which does not depend on the controller choosing to run it.
