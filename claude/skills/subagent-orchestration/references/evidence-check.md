@@ -85,7 +85,15 @@ These require no judgment, only lookup.
    `note` does not explain why it is acceptable is a WARN. Skip this rule
    entirely when `failure_patterns` is absent.
 
-Rules 8 and 9 depend on your judgment and can be wrong. They must not block.
+10. **Activation, not just existence.** When `task` asserts that a hook, config entry,
+    registration, permission rule, feature flag, or scheduled job is *in force*, check
+    whether any evidence entry records an **observed effect** rather than artifact
+    content. Evidence that only reads the file back, lists a directory, or quotes a
+    registry saying `loaded` / `installed` / `enabled` supports the write, not the
+    claim — activation is often deferred to the next session or reload. WARN, and name
+    the observation that would have closed it.
+
+Rules 8 to 10 depend on your judgment and can be wrong. They must not block.
 Judgment-driven hard blocking produces a loop: the controller adds evidence, is
 judged unsupported again, and repeats. Report the gap and let the controller and
 the user decide.

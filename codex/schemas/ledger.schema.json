@@ -34,6 +34,7 @@
       "properties": {
         "agent_id": { "type": "string", "minLength": 1 },
         "status": { "type": "string", "minLength": 1 },
+        "reverted_by": { "type": ["string", "null"], "description": "Task id of a later task that undid this task's outcome. Status stays accepted because the work was performed and evidenced; this field, not the status, carries the reversal. Do not use superseded - a task that accepted tasks depend on cannot be superseded without making their acceptance out-of-order." },
         "dependencies": { "$ref": "#/$defs/pathList" },
         "skills_required": { "$ref": "#/$defs/pathList" },
         "tools_required": { "$ref": "#/$defs/pathList" },

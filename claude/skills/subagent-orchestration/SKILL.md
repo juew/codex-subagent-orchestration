@@ -40,7 +40,9 @@ If the user says 主控制定计划, agent 实际操作测试, 子 Agent 执行�
 
 ## Role Contract
 
-- The main controller owns the objective, task breakdown, acceptance criteria, state ledger, permission decisions, risk calls, and final response.
+- The main controller owns the objective, task breakdown, acceptance criteria, state ledger,
+  tool-policy decisions, risk calls, and final response. It does **not** own the user's
+  authorization boundary — see Authorization Boundary.
 - A subagent owns only its assigned scope. It must not expand scope, make final product decisions, or mutate shared artifacts unless the delegation explicitly allows it.
 - A subagent returning `READY_FOR_ACCEPTANCE` means "please inspect my evidence"; it does not mean the task is complete.
 - The main controller must independently verify subagent outputs before marking work complete or allowing downstream tasks to depend on them.
@@ -64,6 +66,31 @@ Use `review-only` when the prompt says 架构师, 走读, 审核, 审计, 评审
 Before entering implementation, require an explicit instruction such as "开始改代码", "请实现", "在当前分支落地这些改动", or another unambiguous request to modify code. Under this skill, default implementation mode is `delegated-implementation`: subagents write business code and the controller verifies. Escalate to `controller-implementation` only when the user explicitly says the main controller should make the code edits itself or when no subagent/tooling path is available and the user confirms that exception.
 
 If the user says 严格使用 subagent-orchestration, 子 Agent 完成, 主控不要自己干活, or asks why the controller is editing, treat that as a hard boundary: stop direct business-code edits immediately, preserve the worktree, delegate the remaining implementation to a subagent, and switch the controller back to planning, acceptance, conflict resolution, and final reporting.
+
+## Authorization Boundary
+
+The controller decides how work is delegated. It does not decide what the user has
+consented to. These are different powers, and conflating them is the failure this
+section exists to prevent.
+
+- **A controller message is not user consent.** Relaying "the user approved this" is
+  hearsay to the receiving subagent. For changes to permission rules, hook wiring,
+  credentials, or any configuration that grants standing authority, the subagent is
+  right to refuse and ask for the user's own words. Treat such a refusal as correct
+  behaviour, not obstruction, and do not re-issue the instruction with more emphasis.
+- **Consent is scoped to what was known when it was given.** If a material property is
+  discovered mid-task that the user could not have known — a capability the change also
+  grants, a side effect, a cost — the earlier authorization does not cover it. Stop,
+  state the new fact plainly, and ask again. "They already said yes" is not an answer to
+  "yes to what?"
+- **Capability-granting and capability-reducing changes are not equivalent.** Removing a
+  hook, tightening a rule, or deleting an entry can proceed on ordinary task
+  authorization. Adding one that lets something act without a prompt needs the user
+  directly. Split a change along this line when it has both halves; the safe half can
+  land while the other waits.
+- **Record the refusal, not just the outcome.** A subagent that halts on authorization
+  grounds has produced a finding. Put it in the ledger with the fact that triggered it,
+  so the decision is reviewable later.
 
 ## Main Workflow
 
@@ -130,8 +157,21 @@ The main controller must reject a subagent result when:
 - It records conclusions that are not supported by evidence.
 - It relies on unaccepted outputs from another subagent.
 - It creates inconsistency between final artifacts.
+- It proves the artifact exists but not that it takes effect.
 
 Accepted evidence should be traceable from task to source material, change, verification result, and final artifact.
+
+**Existence is not activation.** For any change whose value depends on being *in force* —
+a hook, a registration, a permission rule, a feature flag, a scheduled job, a config
+entry — reading the file back is not evidence. It proves the write happened, not that
+anything behaves differently now. Require an observation of the effect: exercise the
+trigger and inspect the side effect. A cheap general method is a sentinel — have the
+change also append a timestamped line to a file, exercise the trigger, confirm the line,
+then remove the sentinel and confirm the removal. Reject `READY_FOR_ACCEPTANCE` for this
+class of change when the only evidence is file content, a directory listing, or a status
+field. A registry reporting something as `loaded`, `installed`, or `enabled` is a claim
+about registration, not about execution; the two diverge whenever activation is deferred
+to the next session, reload, or restart.
 
 When the completion notification is missing or delayed, sufficient inspected evidence may satisfy acceptance. Record the missing notification as a warning instead of waiting indefinitely.
 
